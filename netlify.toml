@@ -1,14 +1,9 @@
 [build]
   functions = "netlify/functions"
-  publish = "."
+  publish   = "."
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/package.json"]
-
-[[scheduled_functions]]
-  name = "push"
-  schedule = "* * * * *"
 
 [[headers]]
   for = "/*"
