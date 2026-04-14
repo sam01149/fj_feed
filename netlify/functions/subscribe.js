@@ -1,16 +1,35 @@
-// Saves push subscription to Netlify Blobs
 const { getStore } = require('@netlify/blobs');
 
-exports.handler = async function(event) {
+function getStoreWithContext(context, name) {
+  // Netlify injects siteID and token via context.clientContext or env vars
+  const siteID = process.env.SITE_ID || process.env.NETLIFY_SITE_ID;
+  const token  = process.env.NETLIFY_BLOBS_TOKEN || process.env.TOKEN;
+
+  if (siteID && token) {
+    return getStore({ name, siteID, token, consistency: 'strong' });
+  }
+  // Fall back to auto-detection (works when properly deployed via Git)
+  return getStore({ name, consistency: 'strong' });
+}
+
+exports.handler = async function(event, context) {
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS' }, body: '' };
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
+      },
+      body: '',
+    };
   }
 
   const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const store = getStore({ name: 'push-subscriptions', consistency: 'strong' });
+    const store = getStoreWithContext(context, 'push-subscriptions');
 
     if (event.httpMethod === 'DELETE') {
       const { endpoint } = body;
