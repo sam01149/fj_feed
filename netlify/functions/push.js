@@ -1,12 +1,14 @@
 const { schedule } = require('@netlify/functions');
 const webpush = require('web-push');
 
-const RSS_URL     = 'https://www.financialjuice.com/feed.ashx?xy=rss';
-const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@fjfeed.app';
+const RSS_URL        = 'https://www.financialjuice.com/feed.ashx?xy=rss';
+const REDIS_URL      = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN    = process.env.UPSTASH_REDIS_REST_TOKEN;
+const VAPID_PUBLIC   = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE  = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT  = process.env.VAPID_SUBJECT || 'mailto:admin@fjfeed.app';
+const TG_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
+const TG_CHAT_ID     = process.env.TELEGRAM_CHAT_ID;
 
 // ── Upstash Redis helper ──────────────────────────────────────────────────
 async function redisCmd(...args) {
@@ -20,7 +22,38 @@ async function redisCmd(...args) {
   return data.result;
 }
 
-// ── RSS helpers ───────────────────────────────────────────────────────────
+// ── Telegram helper ───────────────────────────────────────────────────────
+async function sendTelegram(newItems) {
+  if (!TG_TOKEN || !TG_CHAT_ID) return;
+
+  const EMOJI = { 'market-moving':'🔴','forex':'💱','energy':'⚡','macro':'🏦','geopolitical':'🌐','econ-data':'📋','news':'📰' };
+
+  // Group by category, max 10 items per message
+  const lines = newItems.slice(0, 10).map(i => {
+    const cat = detectCat(i.title);
+    const emoji = EMOJI[cat] || '📰';
+    const link = i.link ? `[${i.title}](${i.link})` : i.title;
+    return `${emoji} ${link}`;
+  });
+
+  const text = `*FJFeed — ${newItems.length} berita baru*\n\n${lines.join('\n')}`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text,
+        parse_mode: 'Markdown',
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch(e) {
+    console.warn('Telegram send failed:', e.message);
+  }
+}
 function parseRSS(xml) {
   const items = [];
   const re = /<item>([\s\S]*?)<\/item>/g;
@@ -127,6 +160,10 @@ const handler = async function() {
     icon:  '/icon-192.png',
   });
 
+  // Send Telegram notification (reliable on all Android brands)
+  await sendTelegram(newItems);
+
+  // Send Web Push (best effort)
   const staleKeys = [];
   await Promise.allSettled(subs.map(async sub => {
     try {
