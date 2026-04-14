@@ -2,6 +2,7 @@
   "name": "fjfeed-functions",
   "version": "1.0.0",
   "dependencies": {
-    "@netlify/functions": "^2.8.1"
+    "@netlify/functions": "^2.8.1",
+    "web-push": "^3.6.7"
   }
 }

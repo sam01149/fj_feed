@@ -1,5 +1,5 @@
 const { schedule } = require('@netlify/functions');
-const { createECDH } = require('crypto');
+const webpush = require('web-push');
 
 const RSS_URL     = 'https://www.financialjuice.com/feed.ashx?xy=rss';
 const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
@@ -18,47 +18,6 @@ async function redisCmd(...args) {
   });
   const data = await res.json();
   return data.result;
-}
-
-// ── VAPID JWT ─────────────────────────────────────────────────────────────
-function b64u(buf) { return Buffer.from(buf).toString('base64url'); }
-function b64uDec(str) { return Buffer.from(str, 'base64url'); }
-
-async function makeVapidJWT(audience) {
-  const now = Math.floor(Date.now() / 1000);
-  const header  = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
-  const payload = b64u(JSON.stringify({ aud: audience, exp: now + 43200, sub: VAPID_SUBJECT }));
-  const input   = `${header}.${payload}`;
-  const { subtle } = require('crypto').webcrypto;
-  const privRaw = b64uDec(VAPID_PRIVATE);
-  const ecdh = createECDH('prime256v1');
-  ecdh.setPrivateKey(privRaw);
-  const pubRaw = ecdh.getPublicKey();
-  const pkcs8 = Buffer.concat([
-    Buffer.from('3077020100301306072a8648ce3d020106082a8648ce3d030107046d306b0201010420', 'hex'),
-    privRaw,
-    Buffer.from('a144034200', 'hex'),
-    pubRaw,
-  ]);
-  const key = await subtle.importKey('pkcs8', pkcs8, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-  const sig = await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, Buffer.from(input));
-  return `${input}.${b64u(sig)}`;
-}
-
-async function sendPush(sub, payload) {
-  const url = new URL(sub.endpoint);
-  const jwt = await makeVapidJWT(`${url.protocol}//${url.host}`);
-  const res = await fetch(sub.endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `vapid t=${jwt},k=${VAPID_PUBLIC}`,
-      'Content-Type': 'application/json',
-      'TTL': '300',
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10000),
-  });
-  return res.status;
 }
 
 // ── RSS helpers ───────────────────────────────────────────────────────────
@@ -100,14 +59,16 @@ const handler = async function() {
     return { statusCode: 200, body: 'Not configured' };
   }
 
-  // Load seen GUIDs from Redis
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+
+  // Load seen GUIDs
   let seenGuids = new Set();
   try {
     const raw = await redisCmd('GET', 'seen_guids');
     if (raw) seenGuids = new Set(JSON.parse(raw));
   } catch(e) {}
 
-  // Fetch RSS — try Redis cache first
+  // Fetch RSS — try cache first
   let xml = null;
   try {
     const cached = await redisCmd('GET', 'rss_cache');
@@ -138,7 +99,6 @@ const handler = async function() {
   const isFirst = seenGuids.size === 0;
   const newItems = isFirst ? [] : items.filter(i => !seenGuids.has(i.guid));
 
-  // Save seen GUIDs
   items.forEach(i => seenGuids.add(i.guid));
   try {
     await redisCmd('SET', 'seen_guids', JSON.stringify([...seenGuids].slice(-500)), 'EX', 86400);
@@ -146,7 +106,7 @@ const handler = async function() {
 
   if (newItems.length === 0) return { statusCode: 200, body: isFirst ? 'Initialized' : 'No new items' };
 
-  // Get all subscribers from Redis hash
+  // Get subscribers
   let subs = [];
   try {
     const raw = await redisCmd('HGETALL', 'push_subs');
@@ -160,21 +120,23 @@ const handler = async function() {
   if (subs.length === 0) return { statusCode: 200, body: 'No subscribers' };
 
   const cat = detectCat(newItems[0].title);
-  const payload = {
+  const payload = JSON.stringify({
     title: newItems.length === 1 ? `${EMOJI[cat]||'📰'} FJFeed` : `📰 FJFeed — ${newItems.length} berita baru`,
     body:  newItems.length === 1 ? newItems[0].title : newItems.slice(0,2).map(i=>`• ${i.title}`).join('\n'),
     url:   newItems[0]?.link || '/',
     icon:  '/icon-192.png',
-  };
+  });
 
   const staleKeys = [];
   await Promise.allSettled(subs.map(async sub => {
     try {
-      const status = await sendPush(sub, payload);
-      if (status === 410 || status === 404) {
+      await webpush.sendNotification(sub, payload);
+    } catch(e) {
+      console.warn('Push error:', e.statusCode, e.message);
+      if (e.statusCode === 410 || e.statusCode === 404) {
         staleKeys.push(Buffer.from(sub.endpoint).toString('base64').slice(0,80));
       }
-    } catch(e) {}
+    }
   }));
 
   if (staleKeys.length > 0) {
