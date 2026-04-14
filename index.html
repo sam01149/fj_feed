@@ -409,14 +409,37 @@ const FETCH_URL = '/.netlify/functions/rss';
 
 const CATS = {
   'market-moving': ['market moving','breaking','flash','urgent','alert','war','blockade'],
-  'forex':    ['eur/usd','gbp/usd','usd/jpy','aud/usd','usd/cad','nzd/usd','usd/chf','fx options','options expir','dollar index','dxy','currency pair','forint','zloty','krona','won','ringgit','rupiah','baht'],
+  'forex': [
+    // Pair notations — all majors + crosses
+    'eur/usd','gbp/usd','usd/jpy','aud/usd','usd/cad','nzd/usd','usd/chf','usd/cnh','usd/cny',
+    'eur/gbp','eur/jpy','eur/chf','eur/cad','eur/aud','eur/nzd',
+    'gbp/jpy','gbp/chf','gbp/cad','gbp/aud','gbp/nzd',
+    'aud/jpy','aud/cad','aud/chf','aud/nzd',
+    'nzd/jpy','nzd/cad','nzd/chf',
+    'cad/jpy','cad/chf',
+    'chf/jpy',
+    // Reverse notation
+    '/usd','/eur','/gbp','/jpy','/cad','/chf','/aud','/nzd','/cnh',
+    // Currency names
+    'dollar','euro','sterling','pound','yen','franc','loonie','aussie','kiwi',
+    'yuan','renminbi','cable','swissy','fiber','greenback',
+    'canadian dollar','australian dollar','new zealand dollar','swiss franc',
+    'japanese yen','british pound',
+    // FX market terms
+    'fx options','options expir','dollar index','dxy','currency pair',
+    'forex','foreign exchange','spot rate','exchange rate',
+    // Central bank implied FX
+    'boc rate','rba rate','rbnz rate',
+    // Exotic mentions common in FJ
+    'forint','zloty','krona','won','ringgit','lira','rupee','peso','rand',
+  ],
   'equities': ['s&p','nasdaq','dow jones','ftse','dax','nikkei','hang seng','stock','equity','shares','earnings','ipo','nyse','spx','nvda','apple','tesla','meta ','alphabet','microsoft','amazon','samsung','tsmc'],
   'commodities':['gold','silver','copper','wheat','corn','soybean','coffee','cocoa','cotton','lumber','palladium','platinum','xau','xag','commodity','zinc','nickel','iron ore','steel','alumin'],
   'energy':   ['oil','crude','brent','wti','opec','gasoline','diesel','natural gas','barrel','petroleum','hormuz','strait','iea','tanker','refiner','pipeline','lng','energy price','fuel'],
   'bonds':    ['bond','yield','treasury','gilt','bund','t-note','10-year','2-year','30-year','basis point','bps','fixed income','debt','sovereign','auction'],
   'crypto':   ['bitcoin','btc','ethereum','eth','crypto','blockchain','coinbase','binance','stablecoin','defi','nft','altcoin','ripple','xrp','solana'],
   'indexes':  ['pmi','purchasing manager','composite index','manufacturing index','services index','business activity'],
-  'macro':    ['fed ','fomc','powell','goolsbee','waller','kashkari','warsh','federal reserve','rate cut','rate hike','interest rate','ecb','boe','rba','boj','pboc','central bank','monetary policy','lagarde','bailey','ueda','imf','world bank','g7','g20','gdp','recession'],
+  'macro':    ['fed ','fomc','powell','goolsbee','waller','kashkari','warsh','federal reserve','rate cut','rate hike','interest rate','ecb','boe','rba','boj','pboc','rbnz','boc ','central bank','monetary policy','lagarde','bailey','ueda','imf','world bank','g7','g20','gdp','recession'],
   'econ-data':['actual','forecast','previous','cpi','nfp','unemployment','retail sales','trade balance','consumer confidence','business confidence','industrial production','housing','payroll','nab business','westpac','consumer sentiment','capacity utilization','wholesale price'],
   'geopolitical':['iran','iranian','tehran','nuclear','ceasefire','hezbollah','israel','lebanon','russia','ukraine','china','chinese','xi jinping','beijing','taiwan','north korea','sanction','tariff','trade war','trump','white house','nato','military','war','conflict','diplomat','vance'],
 };
@@ -479,22 +502,62 @@ document.getElementById('installBtn').addEventListener('click', () => {
 });
 
 // ── NOTIFICATIONS ────────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BJ3No_sbWG_HWd7Cqa_CcRJFFQl2bFQ8bdJtzaepEmOa-t4HyoS-y6IrvL_WHpIQskY87eeTM_cQqXjfU13GeBw';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
 async function requestNotif() {
   if (!('Notification' in window)) {
     showToast('Tidak Didukung', 'Browser ini tidak support notifikasi');
     return;
   }
+
   const perm = await Notification.requestPermission();
-  if (perm === 'granted') {
-    notifEnabled = true;
-    document.getElementById('notifBtn').classList.add('enabled');
-    document.getElementById('notifBtn').textContent = '🔔';
-    showToast('Notifikasi Aktif ✓', 'Kamu akan dapat notif setiap ada berita baru');
-    // Inform SW
-    sendToSW({ type:'INIT_GUIDS', guids:[...seenGuids] });
-  } else {
+  if (perm !== 'granted') {
     showToast('Ditolak', 'Izinkan notifikasi di pengaturan browser');
+    return;
   }
+
+  notifEnabled = true;
+  document.getElementById('notifBtn').classList.add('enabled');
+
+  // Try Web Push (server-side push — works when HP off)
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      // Send subscription to server
+      const res = await fetch('/.netlify/functions/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+      if (res.ok) {
+        showToast('Notifikasi Aktif ✓', 'Push notif aktif — bekerja bahkan saat HP mati layar', 4000);
+        localStorage.setItem('pushSubscribed', '1');
+      } else {
+        throw new Error('Subscribe failed: ' + res.status);
+      }
+    } catch(e) {
+      console.warn('Web Push failed, falling back to local notif:', e.message);
+      showToast('Notifikasi Aktif ✓', 'Notif aktif (mode terbatas — tab harus terbuka)', 4000);
+    }
+  } else {
+    showToast('Notifikasi Aktif ✓', 'Notif aktif (mode terbatas — tab harus terbuka)', 4000);
+  }
+
+  sendToSW({ type: 'INIT_GUIDS', guids: [...seenGuids] });
 }
 
 function sendToSW(msg) {
@@ -585,7 +648,9 @@ async function fetchFeed() {
       document.getElementById('feedScroll').innerHTML = `
         <div class="state-box">
           <div class="icon">⚠️</div>
-          <p>Semua proxy gagal.<br>Coba lagi dalam beberapa detik.</p>
+          <p>Gagal fetch dari server.<br>
+          Pastikan Netlify Functions ter-deploy<br>via GitHub atau Netlify CLI.<br><br>
+          <span style="color:#4a5568">Drag & drop tidak support Functions.</span></p>
         </div>`;
     }
     setTimeout(fetchFeed, 8000);

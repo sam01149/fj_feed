@@ -117,10 +117,25 @@ async function checkForNewItems() {
   }
 }
 
+self.addEventListener('push', e => {
+  if (!e.data) return;
+  let data = {};
+  try { data = e.data.json(); } catch(err) { data = { title: 'FJFeed', body: e.data.text() }; }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'FJFeed', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'fjfeed-push-' + Date.now(),
+      data: { url: data.url || '/' },
+      vibrate: [100, 50, 100],
+      requireInteraction: false,
+    })
+  );
+});
+
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = e.notification.data?.url;
-  if (url) {
-    e.waitUntil(clients.openWindow(url));
-  }
+  const url = e.notification.data?.url || '/';
+  e.waitUntil(clients.openWindow(url));
 });
