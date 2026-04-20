@@ -109,6 +109,11 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
         const gd = await gemRes.json();
         const raw = gd?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         if (raw.trim()) article = raw.trim();
+      } else {
+        const errData = await gemRes.json().catch(()=>({}));
+        const errMsg = errData?.error?.message || 'HTTP ' + gemRes.status;
+        console.warn('Gemini HTTP error:', gemRes.status, errMsg);
+        method = gemRes.status === 429 ? 'fallback_quota' : 'fallback';
       }
     } catch(e) { console.warn('Gemini failed:', e.message); method = 'fallback'; }
   } else { method = 'fallback'; }
