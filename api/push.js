@@ -37,10 +37,28 @@ module.exports = async function handler(req, res) {
   } catch(e) {}
 
   if (!xml) {
-    try {
-      const r = await fetch(RSS_URL, { headers: { 'User-Agent': 'Feedly/1.0 (+http://www.feedly.com/fetcher.html)', 'Referer': 'https://www.financialjuice.com/' }, signal: AbortSignal.timeout(12000) });
-      if (r.ok) { xml = await r.text(); await redisCmd('SET','rss_cache',JSON.stringify({xml,fetchedAt:Date.now()}),'EX',120); }
-    } catch(e) { return res.status(200).json({ status: 'RSS unavailable' }); }
+    const RSS_UAS = [
+      'Feedly/1.0 (+http://www.feedly.com/fetcher.html; like FeedFetcher-Google)',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'NewsBlur Feed Fetcher - 1000000 subscribers',
+    ];
+    for (const ua of RSS_UAS) {
+      try {
+        const r = await fetch(RSS_URL, {
+          headers: { 'User-Agent': ua, 'Referer': 'https://www.financialjuice.com/', 'Accept': 'application/rss+xml, application/xml, */*' },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (r.ok) {
+          const text = await r.text();
+          if (text.includes('<rss')) {
+            xml = text;
+            await redisCmd('SET','rss_cache',JSON.stringify({xml,fetchedAt:Date.now()}),'EX',120);
+            break;
+          }
+        }
+      } catch(e) { console.warn('RSS attempt failed:', e.message); }
+    }
+    if (!xml) return res.status(200).json({ status: 'RSS unavailable' });
   }
 
   if (!xml) return res.status(200).json({ status: 'No RSS' });
