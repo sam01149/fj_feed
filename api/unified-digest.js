@@ -2,13 +2,14 @@
 const RSS_URL      = 'https://www.financialjuice.com/feed.ashx?xy=rss';
 const FF_THIS_WEEK = 'https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
 const FF_NEXT_WEEK = 'https://nfs.faireconomy.media/ff_calendar_nextweek.xml';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GROQ_MODEL   = 'llama-3.3-70b-versatile';
+const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const MAJOR_CURRENCIES = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-cache');
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  const GROQ_KEY = process.env.GROQ_API_KEY;
 
   // 1. RSS — try multiple user agents, Vercel egress can be blocked by FJ
   let rssItems = [];
@@ -65,8 +66,8 @@ module.exports = async function handler(req, res) {
   const calBlock = calEvents.length > 0 ? calEvents.map(e=>`- ${e.date} | ${e.time_wib} | ${e.currency} | ${e.event}`).join('\n') : '(Tidak ada event high-impact)';
 
   // 4. Gemini
-  let article = null, method = 'gemini';
-  if (GEMINI_KEY && recentItems.length > 0) {
+  let article = null, method = 'groq';
+  if (GROQ_KEY && recentItems.length > 0) {
     const prompt = `Kamu adalah analis pasar keuangan senior yang menulis untuk trader forex Indonesia dengan gaya trading macro discretionary.
 
 WAKTU SAAT INI: ${dateStr}, ${timeStr}
@@ -96,26 +97,30 @@ FORMAT WAJIB:
 Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
 
     try {
-      const gemRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 800 } }),
-          signal: AbortSignal.timeout(25000),
-        }
-      );
-      if (gemRes.ok) {
-        const gd = await gemRes.json();
-        const raw = gd?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const groqRes = await fetch(GROQ_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_KEY}`,
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          max_tokens: 800,
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+      if (groqRes.ok) {
+        const gd = await groqRes.json();
+        const raw = gd?.choices?.[0]?.message?.content || '';
         if (raw.trim()) article = raw.trim();
       } else {
-        const errData = await gemRes.json().catch(()=>({}));
-        const errMsg = errData?.error?.message || 'HTTP ' + gemRes.status;
-        console.warn('Gemini HTTP error:', gemRes.status, errMsg);
-        method = gemRes.status === 429 ? 'fallback_quota' : 'fallback';
+        const errData = await groqRes.json().catch(()=>({}));
+        console.warn('Groq HTTP error:', groqRes.status, errData?.error?.message || '');
+        method = groqRes.status === 429 ? 'fallback_quota' : 'fallback';
       }
-    } catch(e) { console.warn('Gemini failed:', e.message); method = 'fallback'; }
+    } catch(e) { console.warn('Groq failed:', e.message); method = 'fallback'; }
   } else { method = 'fallback'; }
 
   // 5. Fallback

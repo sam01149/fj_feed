@@ -1,59 +1,48 @@
 // api/debug.js — TEMPORARY, hapus setelah masalah resolved
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-
   const results = {};
 
   // Test 1: env vars
   results.env = {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'SET (len=' + process.env.GEMINI_API_KEY.length + ')' : 'NOT SET',
+    GROQ_API_KEY:          process.env.GROQ_API_KEY          ? 'SET (len=' + process.env.GROQ_API_KEY.length + ')' : 'NOT SET',
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ? 'SET' : 'NOT SET',
-    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ? 'SET' : 'NOT SET',
+    TELEGRAM_BOT_TOKEN:    process.env.TELEGRAM_BOT_TOKEN    ? 'SET' : 'NOT SET',
   };
 
   // Test 2: RSS fetch
-  const RSS_URL = 'https://www.financialjuice.com/feed.ashx?xy=rss';
   try {
-    const r = await fetch(RSS_URL, {
+    const r = await fetch('https://www.financialjuice.com/feed.ashx?xy=rss', {
       headers: { 'User-Agent': 'Feedly/1.0 (+http://www.feedly.com/fetcher.html)', 'Referer': 'https://www.financialjuice.com/' },
       signal: AbortSignal.timeout(10000),
     });
     const text = await r.text();
-    results.rss = {
-      status: r.status,
-      ok: r.ok,
-      is_rss: text.includes('<rss'),
-      length: text.length,
-      preview: text.substring(0, 200),
-    };
-  } catch(e) {
-    results.rss = { error: e.message };
-  }
+    results.rss = { status: r.status, ok: r.ok, is_rss: text.includes('<rss'), length: text.length };
+  } catch(e) { results.rss = { error: e.message }; }
 
-  // Test 3: Gemini ping
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
-  if (GEMINI_KEY) {
+  // Test 3: Groq ping
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (GROQ_KEY) {
     try {
-      const gemRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: 'Balas hanya dengan kata: OK' }] }], generationConfig: { maxOutputTokens: 10 } }),
-          signal: AbortSignal.timeout(15000),
-        }
-      );
-      const gd = await gemRes.json();
-      results.gemini = {
-        status: gemRes.status,
-        ok: gemRes.ok,
-        response: gd?.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(gd).substring(0, 200),
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: 'Balas hanya dengan kata: OK' }],
+          max_tokens: 5,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const gd = await r.json();
+      results.groq = {
+        status: r.status,
+        ok: r.ok,
+        response: gd?.choices?.[0]?.message?.content || JSON.stringify(gd).substring(0, 200),
       };
-    } catch(e) {
-      results.gemini = { error: e.message };
-    }
+    } catch(e) { results.groq = { error: e.message }; }
   } else {
-    results.gemini = { error: 'GEMINI_API_KEY not set' };
+    results.groq = { error: 'GROQ_API_KEY not set' };
   }
 
   return res.status(200).json(results);
