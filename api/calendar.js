@@ -26,11 +26,20 @@ module.exports = async function handler(req, res) {
 
     const seen = new Set();
     const deduped = allEvents
-      .filter(e => dateRange.has(e.date) && e.impact === 'High' && MAJOR_CURRENCIES.has(e.currency))
-      .filter(e => { const k = `${e.date}|${e.time_wib}|${e.currency}|${e.event}`; if (seen.has(k)) return false; seen.add(k); return true; })
-      .sort((a, b) => (a.date + (a.time_wib||'')).localeCompare(b.date + (b.time_wib||'')));
+      .filter(e => dateRange.has(e.date) && (e.impact === 'High' || e.impact === 'Medium') && MAJOR_CURRENCIES.has(e.currency))
+      .filter(e => {
+        const k = `${e.date}|${e.time_wib}|${e.currency}|${e.event}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .sort((a, b) => {
+        const ka = a.date + (a.time_wib === 'Tentative' ? '99:99' : a.time_wib || '99:99');
+        const kb = b.date + (b.time_wib === 'Tentative' ? '99:99' : b.time_wib || '99:99');
+        return ka.localeCompare(kb);
+      });
 
-    res.setHeader('Cache-Control', 'max-age=900');
+    res.setHeader('Cache-Control', 'max-age=300');
     return res.status(200).json({ events: deduped, count: deduped.length, fetched_at: new Date().toISOString() });
   } catch(e) {
     console.error('Calendar error:', e.message);
@@ -48,12 +57,32 @@ function parseFFXML(xml) {
   let m;
   while ((m = re.exec(xml)) !== null) {
     const block = m[1];
-    const get = tag => { const r = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`).exec(block); if (!r) return ''; return r[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').trim(); };
-    const title = get('title'), country = get('country').toUpperCase(), date = get('date'), time = get('time'), impact = get('impact');
+    const get = tag => {
+      const r = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`).exec(block);
+      if (!r) return '';
+      return r[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').trim();
+    };
+    const title    = get('title');
+    const country  = get('country').toUpperCase();
+    const date     = get('date');
+    const time     = get('time');
+    const impact   = get('impact');
+    const forecast = get('forecast');
+    const previous = get('previous');
+    const actual   = get('actual');
     if (!title || !country) continue;
     const dp = date.match(/(\d{2})-(\d{2})-(\d{4})/);
     if (!dp) continue;
-    events.push({ date: `${dp[3]}-${dp[1]}-${dp[2]}`, time_wib: convertToWIB(time), currency: country, event: title, impact, forecast: get('forecast')||null, previous: get('previous')||null });
+    events.push({
+      date:     `${dp[3]}-${dp[1]}-${dp[2]}`,
+      time_wib: convertToWIB(time),
+      currency: country,
+      event:    title,
+      impact,
+      forecast: forecast || null,
+      previous: previous || null,
+      actual:   actual   || null,
+    });
   }
   return events;
 }
