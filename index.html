@@ -373,6 +373,12 @@ body {
 }
 .cot-change.up   { color: var(--green); }
 .cot-change.down { color: var(--red); }
+.cot-group-label {
+  font-size: 9px; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--accent); padding: 6px 0 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 4px;
+  display: flex; align-items: center;
+}
 
 /* ── CALENDAR TAB ── */
 .ftab[data-view="cal"] { color: var(--green); }
@@ -1363,8 +1369,13 @@ function renderCOT() {
     return;
   }
 
-  if (cotData.report_date && badge) {
-    badge.textContent = 'Posisi per Selasa, ' + cotData.report_date;
+  // Date range badge: "Posisi per Sel 15 Apr · Dirilis Jum 18 Apr"
+  if (badge) {
+    const rd = cotData.report_date || '';
+    const rel = cotData.release_date || '';
+    badge.textContent = rd && rel
+      ? `Posisi per Sel, ${rd}  ·  Dirilis Jum, ${rel}`
+      : rd ? `Posisi per Sel, ${rd}` : 'Memuat...';
   }
   if (staleBadge) staleBadge.style.display = cotData.stale ? 'inline' : 'none';
 
@@ -1374,38 +1385,42 @@ function renderCOT() {
     CAD:'#ff6b35', AUD:'#00c896', NZD:'#34d399', CHF:'#ff4757',
   };
 
-  // Max abs net for bar normalization
-  const nets = ORDER.map(c => cotData.positions[c]?.net || 0);
-  const maxNet = Math.max(...nets.map(Math.abs)) || 1;
-
   function fmtK(n) {
     if (n === null || n === undefined) return '—';
-    const abs = Math.abs(n);
-    if (abs >= 1000) return (n > 0 ? '+' : '') + (n / 1000).toFixed(1) + 'K';
+    if (Math.abs(n) >= 1000) return (n > 0 ? '+' : '') + (n / 1000).toFixed(1) + 'K';
     return (n > 0 ? '+' : '') + n;
   }
 
-  grid.innerHTML = ORDER.filter(c => cotData.positions[c]).map(cur => {
-    const d = cotData.positions[cur];
-    const color   = CUR_COLORS_COT[cur] || '#fff';
-    const isLong  = d.net >= 0;
-    const barPct  = Math.min(100, Math.round(Math.abs(d.net) / maxNet * 100));
-    const netStr  = fmtK(d.net);
-    const chgStr  = d.change_net !== null ? fmtK(d.change_net) : '—';
-    const chgClass = d.change_net === null ? '' : d.change_net > 0 ? 'up' : d.change_net < 0 ? 'down' : '';
-    const chgIcon  = d.change_net > 0 ? '▲' : d.change_net < 0 ? '▼' : '→';
+  function makeRows(netKey, changeKey) {
+    const nets = ORDER.map(c => cotData.positions[c]?.[netKey] || 0);
+    const maxNet = Math.max(...nets.map(Math.abs)) || 1;
+    return ORDER.filter(c => cotData.positions[c]).map(cur => {
+      const d = cotData.positions[cur];
+      const color    = CUR_COLORS_COT[cur] || '#fff';
+      const net      = d[netKey];
+      const chg      = d[changeKey];
+      const isLong   = net >= 0;
+      const barPct   = Math.min(100, Math.round(Math.abs(net) / maxNet * 100));
+      const chgClass = chg === null ? '' : chg > 0 ? 'up' : chg < 0 ? 'down' : '';
+      const chgIcon  = chg > 0 ? '▲' : chg < 0 ? '▼' : '→';
+      const barHtml  = isLong
+        ? `<div class="cot-bar-wrap"><div class="cot-bar long" style="width:${barPct}%"></div></div>`
+        : `<div class="cot-bar-wrap" style="direction:rtl"><div class="cot-bar short" style="width:${barPct}%"></div></div>`;
+      return `<div class="cot-row">
+        <span class="cot-cur" style="color:${color}">${cur}</span>
+        ${barHtml}
+        <span class="cot-net ${isLong ? 'long' : 'short'}">${fmtK(net)}</span>
+        <span class="cot-change ${chgClass}">${chgIcon} ${fmtK(chg)}</span>
+      </div>`;
+    }).join('');
+  }
 
-    const barHtml = isLong
-      ? `<div class="cot-bar-wrap"><div class="cot-bar long" style="width:${barPct}%"></div></div>`
-      : `<div class="cot-bar-wrap" style="direction:rtl"><div class="cot-bar short" style="width:${barPct}%"></div></div>`;
-
-    return `<div class="cot-row">
-      <span class="cot-cur" style="color:${color}">${cur}</span>
-      ${barHtml}
-      <span class="cot-net ${isLong ? 'long' : 'short'}">${netStr}</span>
-      <span class="cot-change ${chgClass}">${chgIcon} ${chgStr}</span>
-    </div>`;
-  }).join('');
+  grid.innerHTML = `
+    <div class="cot-group-label">Leveraged Funds <span style="color:var(--muted);font-size:8px;margin-left:4px">Hedge Fund · Spekulan aktif</span></div>
+    ${makeRows('lev_net', 'lev_change_net')}
+    <div class="cot-group-label" style="margin-top:14px">Asset Manager <span style="color:var(--muted);font-size:8px;margin-left:4px">Institusi · Posisi jangka panjang</span></div>
+    ${makeRows('am_net', 'am_change_net')}
+  `;
 }
 
 // Calendar filter state

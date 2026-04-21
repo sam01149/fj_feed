@@ -113,12 +113,16 @@ module.exports = async function handler(req, res) {
     // 6: Lev Long     7: Lev Short     8: Lev Spread
     // 9: Other Long  10: Other Short  11: Other Spread
     // 12: NR Long    13: NR Short
+    const amLong   = nums[3];
+    const amShort  = nums[4];
+    const amNet    = amLong - amShort;
     const levLong  = nums[6];
     const levShort = nums[7];
-    const net = levLong - levShort;
+    const levNet   = levLong - levShort;
 
     // Find "Changes from:" → data on next line
-    let changeNet = null;
+    let levChangeNet = null;
+    let amChangeNet  = null;
     for (let i = 0; i < lines.length; i++) {
       if (/Changes from/i.test(lines[i])) {
         let changeLine = '';
@@ -129,19 +133,35 @@ module.exports = async function handler(req, res) {
           const cn = changeLine.trim().split(/\s+/)
             .map(s => parseInt(s.replace(/,/g, '')))
             .filter(n => !isNaN(n));
-          if (cn.length >= 8) changeNet = cn[6] - cn[7];
+          if (cn.length >= 8) {
+            amChangeNet  = cn[3] - cn[4];
+            levChangeNet = cn[6] - cn[7];
+          }
         }
         break;
       }
     }
 
-    positions[currency] = { lev_long: levLong, lev_short: levShort, net, change_net: changeNet };
+    positions[currency] = {
+      am_long: amLong, am_short: amShort, am_net: amNet, am_change_net: amChangeNet,
+      lev_long: levLong, lev_short: levShort, lev_net: levNet, lev_change_net: levChangeNet,
+    };
+  }
+
+  // Calculate release date (report_date = Tuesday, released 3 days later = Friday)
+  let releaseDate = null;
+  if (reportDate) {
+    const d = new Date(reportDate);
+    if (!isNaN(d)) {
+      const fri = new Date(d.getTime() + 3 * 24 * 3600 * 1000);
+      releaseDate = fri.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
   }
 
   const payload = {
     positions,
     report_date: reportDate,
-    category: 'Leveraged Funds',
+    release_date: releaseDate,
     fetched_at: new Date().toISOString(),
   };
 
