@@ -202,7 +202,9 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
 
           // Parse JSON — strip any accidental markdown
           const clean = rawBias.replace(/```json|```/g, '').trim();
+          console.log('Groq bias raw:', rawBias.substring(0, 300));
           const parsed = JSON.parse(clean);
+          console.log('Groq bias parsed:', JSON.stringify(parsed));
 
           const VALID_BIASES = ['Hawkish','Cautious Hawkish','Neutral','Data Dependent','On Hold','Cautious Dovish','Dovish','Split'];
           const now = new Date().toISOString();
