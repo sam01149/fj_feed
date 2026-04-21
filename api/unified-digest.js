@@ -218,8 +218,12 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
           } catch(e) {}
 
           // Merge new bias — only 8 major currencies
+          console.log('Bias parsed entries:', JSON.stringify(Object.entries(parsed)));
           for (const [cur, bias] of Object.entries(parsed)) {
-            if (VALID_CURRENCIES.has(cur) && VALID_BIASES.includes(bias)) {
+            const curOk = VALID_CURRENCIES.has(cur);
+            const biasOk = VALID_BIASES.includes(bias);
+            console.log('Check', cur, bias, '→ cur:', curOk, 'bias:', biasOk);
+            if (curOk && biasOk) {
               existing[cur] = { bias, updated_at: now };
               biasUpdated.push(cur);
             }
