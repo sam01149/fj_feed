@@ -294,54 +294,42 @@ body {
   margin-top: 6px; padding-bottom: 4px;
 }
 
-/* ── FUNDAMENTAL SNAPSHOT ── */
-.fundamental-section {
-  padding: 10px 12px 4px;
-  border-bottom: 1px solid var(--border);
+/* ── COT TAB ── */
+.ftab[data-view="cot"] { color: var(--purple); }
+.ftab[data-view="cot"].active {
+  color: var(--bg); background: var(--purple);
+  border-radius: 4px 4px 0 0; border-bottom-color: var(--purple);
 }
-.fundamental-title {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 9px; letter-spacing: 1px; color: var(--muted);
-  text-transform: uppercase; padding: 4px 0 10px;
-}
-.fundamental-empty {
-  font-size: 11px; color: var(--muted); text-align: center;
-  padding: 12px 0 8px; font-style: italic;
-}
-.fundamental-currency-block {
-  margin-bottom: 12px;
-}
-.fundamental-cur-header {
-  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
-  margin-bottom: 5px; padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
-}
-.fundamental-table {
-  width: 100%; border-collapse: collapse;
-}
-.fundamental-table td {
-  font-size: 10px; padding: 3px 4px; vertical-align: middle;
-  border: none; color: var(--text);
-}
-.fundamental-table td:first-child {
-  color: var(--muted); font-size: 9px; letter-spacing: .2px;
-  width: 45%;
-}
-.fundamental-actual {
-  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px;
-}
-.fundamental-prev {
-  color: var(--muted); font-size: 9px;
-}
-.fundamental-arrow-up   { color: var(--green); }
-.fundamental-arrow-down { color: var(--red); }
-.fundamental-arrow-flat { color: var(--muted); }
-.fundamental-date { font-size: 8px; color: var(--muted); }
 
 /* ── COT POSITIONING ── */
+.cot-panel-inner {
+  padding: 12px 12px 24px;
+}
+.cot-header-block {
+  margin-bottom: 14px;
+}
+.cot-panel-title {
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  color: var(--text); margin-bottom: 4px;
+}
+.cot-meta-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.cot-report-badge {
+  font-size: 9px; padding: 2px 8px; border-radius: 3px;
+  background: rgba(167,139,250,.12); color: var(--purple); letter-spacing: .4px;
+}
+.cot-stale-badge {
+  font-size: 9px; padding: 2px 8px; border-radius: 3px;
+  background: rgba(255,211,42,.1); color: var(--yellow); letter-spacing: .4px;
+}
+.cot-desc {
+  font-size: 10px; color: var(--muted); line-height: 1.5; margin-bottom: 12px;
+  border-left: 2px solid var(--border); padding-left: 10px;
+}
 .cot-section {
-  padding: 10px 12px 6px;
-  border-bottom: 1px solid var(--border);
+  padding: 0;
 }
 .cot-title {
   display: flex; align-items: center; justify-content: space-between;
@@ -612,6 +600,50 @@ body {
   font-family:'DM Mono',monospace; font-size:10px;
   border:none; cursor:pointer;
 }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 768px) {
+  .header { padding: 14px 24px; }
+  .stats-bar .stat { padding: 10px 20px; }
+  .stat-val { font-size: 20px; }
+  .filter-wrap { padding: 0 16px; }
+  .ftab { padding: 12px 16px; font-size: 11px; }
+  .toolbar { padding: 10px 24px; }
+  .feed-scroll { padding: 12px 20px 20px; }
+  .ringkasan-inner { padding: 20px 24px 28px; max-width: 860px; margin: 0 auto; }
+  .ringkasan-card { padding: 20px 24px; }
+  .ringkasan-text { font-size: 14px; line-height: 1.8; }
+  .cb-section { padding: 14px 24px 8px; }
+  .cb-grid { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .cb-card { padding: 12px 14px; }
+  .cb-currency { font-size: 15px; }
+  .cb-rate { font-size: 17px; }
+  .cal-toolbar { padding: 12px 24px 8px; }
+  .cal-panel-inner { padding: 6px 24px 24px; }
+  .cal-event-main { padding: 14px 18px 12px 20px; }
+  .cal-event-name { font-size: 14px; }
+  .cal-time { font-size: 13px; }
+  .cot-panel-inner { padding: 16px 24px 32px; max-width: 700px; margin: 0 auto; }
+  .cot-row { grid-template-columns: 50px 1fr auto auto; gap: 12px; padding: 7px 0; }
+  .cot-cur { font-size: 13px; }
+  .cot-net { font-size: 13px; min-width: 64px; }
+  .cot-change { font-size: 10px; min-width: 52px; }
+  .cal-legend { padding: 10px 24px 6px; }
+}
+
+@media (max-width: 480px) {
+  .cb-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .cb-card { padding: 8px 10px; }
+  .cb-currency { font-size: 12px; }
+  .cb-rate { font-size: 14px; }
+  .stats-bar .stat { padding: 7px 10px; }
+  .stat-val { font-size: 15px; }
+  .ftab { padding: 9px 10px; font-size: 9px; }
+  .cot-row { grid-template-columns: 34px 1fr auto auto; gap: 6px; }
+  .cot-net { min-width: 48px; font-size: 10px; }
+  .cot-change { min-width: 40px; font-size: 8px; }
+  .cot-cur { font-size: 10px; }
+}
 </style>
 </head>
 <body>
@@ -653,6 +685,7 @@ body {
   <button class="ftab" data-cat="energy">Energy</button>
   <button class="ftab" data-cat="geopolitical">Geopolitical</button>
   <button class="ftab" data-view="cal" id="calTab">📅 CAL</button>
+  <button class="ftab" data-view="cot" id="cotTab">📊 COT</button>
 </div>
 
 <!-- TOOLBAR -->
@@ -712,31 +745,6 @@ body {
       </div>
     </div>
   </div>
-  <!-- FUNDAMENTAL SNAPSHOT -->
-  <div class="fundamental-section" id="fundamentalSection">
-    <div class="fundamental-title">
-      <span>Fundamental Snapshot</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span id="fundamentalUpdatedAt" style="color:var(--muted);font-size:8px"></span>
-        <button onclick="forceFetchFundamentals()" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:8px;padding:2px 6px;border-radius:3px;cursor:pointer">↻ REFRESH</button>
-      </div>
-    </div>
-    <div id="fundamentalGrid">
-      <div class="fundamental-empty">Memuat data fundamental...</div>
-    </div>
-  </div>
-
-  <!-- COT POSITIONING -->
-  <div class="cot-section" id="cotSection">
-    <div class="cot-title">
-      <span>COT Positioning — Leveraged Funds</span>
-      <span id="cotReportDate" style="color:var(--muted);font-size:8px"></span>
-    </div>
-    <div id="cotGrid">
-      <div class="cot-empty">Memuat data COT...</div>
-    </div>
-  </div>
-
   <div class="cal-toolbar">
     <div class="cal-filter-group">
       <button class="cal-filter-btn active-all" id="calFilterAll" onclick="setCalFilter('all')">Semua</button>
@@ -756,6 +764,27 @@ body {
   </div>
   <div class="cal-panel-inner" id="calPanelInner">
     <div class="cal-empty">Memuat kalender ekonomi...</div>
+  </div>
+</div>
+
+<!-- COT PANEL -->
+<div class="feed-scroll" id="cotPanel" style="display:none">
+  <div class="cot-panel-inner">
+    <div class="cot-header-block">
+      <div class="cot-panel-title">COT Positioning</div>
+      <div class="cot-meta-row">
+        <span class="cot-report-badge" id="cotReportBadge">Memuat...</span>
+        <span class="cot-stale-badge" id="cotStaleBadge" style="display:none">⚠ Data lama</span>
+      </div>
+      <div class="cot-desc">
+        Posisi net <strong>Leveraged Funds</strong> (hedge fund & spekulan) dari laporan CFTC Commitments of Traders.
+        Dirilis setiap <strong>Jumat 3:30 PM ET</strong>, mencakup posisi per Selasa minggu tersebut.
+        Net positif = lebih banyak long, net negatif = lebih banyak short.
+      </div>
+    </div>
+    <div id="cotGrid">
+      <div class="cot-empty">Memuat data COT...</div>
+    </div>
   </div>
 </div>
 
@@ -824,10 +853,6 @@ let cbFetchedAt   = 0;
 
 // Ringkasan state
 let ringkasanCache = null;
-
-// Fundamental Snapshot state
-let fundamentalData      = null;
-let fundamentalFetchedAt = 0;
 
 // COT state
 let cotData      = null;
@@ -1174,6 +1199,7 @@ document.querySelectorAll('.ftab').forEach(btn => {
     document.getElementById('feedScroll').style.display     = 'none';
     document.getElementById('ringkasanPanel').style.display = 'none';
     document.getElementById('calPanel').style.display       = 'none';
+    document.getElementById('cotPanel').style.display       = 'none';
 
     const view = btn.dataset.view;
     if (view === 'ringkasan') {
@@ -1186,13 +1212,12 @@ document.querySelectorAll('.ftab').forEach(btn => {
       const now = Date.now();
       if (!calData || (now - calFetchedAt) > 15 * 60 * 1000) fetchCalendar();
       else renderCalendar();
-      // Always refresh CB status when switching to CAL
       if (!cbData || (now - cbFetchedAt) > 5 * 60 * 1000) fetchCBStatus();
       else renderCBTracker();
-      // Refresh fundamental snapshot when switching to CAL
-      if (!fundamentalData || (now - fundamentalFetchedAt) > 10 * 60 * 1000) fetchFundamentals();
-      else renderFundamentals();
-      // Refresh COT when switching to CAL (cached 6h server-side)
+    } else if (view === 'cot') {
+      activeView = 'cot';
+      document.getElementById('cotPanel').style.display = 'block';
+      const now = Date.now();
       if (!cotData || (now - cotFetchedAt) > 30 * 60 * 1000) fetchCOT();
       else renderCOT();
     } else {
@@ -1311,85 +1336,6 @@ function fmtCBTime(iso) {
   return `${String(wib.getUTCHours()).padStart(2,'0')}:${String(wib.getUTCMinutes()).padStart(2,'0')} WIB`;
 }
 
-// ── FUNDAMENTAL SNAPSHOT ─────────────────────────────────
-const CUR_COLORS_FUND = {
-  USD:'#60a5fa', EUR:'#00e5ff', GBP:'#a78bfa',
-  JPY:'#ffd32a', CAD:'#ff6b35', AUD:'#00c896',
-  NZD:'#34d399', CHF:'#ff4757',
-};
-const CURRENCY_ORDER = ['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF'];
-
-async function forceFetchFundamentals() {
-  fundamentalFetchedAt = 0; // reset client cache
-  await fetchFundamentals();
-}
-
-async function fetchFundamentals() {
-  try {
-    const res = await fetch('/api/fundamentals', { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    fundamentalData      = data.snapshot;
-    fundamentalFetchedAt = Date.now();
-    renderFundamentals();
-  } catch(e) {
-    console.warn('Fundamental fetch failed:', e.message);
-    document.getElementById('fundamentalGrid').innerHTML =
-      '<div class="fundamental-empty">Gagal memuat data fundamental. Coba refresh tab CAL.</div>';
-  }
-}
-
-function renderFundamentals() {
-  const grid = document.getElementById('fundamentalGrid');
-  if (!fundamentalData || Object.keys(fundamentalData).length === 0) {
-    grid.innerHTML = '<div class="fundamental-empty">Belum ada actual release yang terdeteksi. Data muncul otomatis setelah event ekonomi dirilis di ForexFactory.</div>';
-    return;
-  }
-
-  const rows = CURRENCY_ORDER.filter(cur => fundamentalData[cur]);
-  if (rows.length === 0) {
-    grid.innerHTML = '<div class="fundamental-empty">Belum ada actual release yang terdeteksi minggu ini.</div>';
-    return;
-  }
-
-  // Find the most recent updated_at across all entries
-  let latestAt = null;
-  for (const cur of rows) {
-    for (const ind of Object.values(fundamentalData[cur])) {
-      if (!latestAt || ind.updated_at > latestAt) latestAt = ind.updated_at;
-    }
-  }
-  if (latestAt) {
-    document.getElementById('fundamentalUpdatedAt').textContent = 'Updated ' + fmtCBTime(latestAt);
-  }
-
-  grid.innerHTML = rows.map(cur => {
-    const color = CUR_COLORS_FUND[cur] || '#fff';
-    const indicators = fundamentalData[cur];
-    const indRows = Object.entries(indicators).map(([name, d]) => {
-      const actualNum  = parseFloat((d.actual  || '').replace(/[^0-9.\-]/g, ''));
-      const prevNum    = parseFloat((d.previous || '').replace(/[^0-9.\-]/g, ''));
-      let arrow = '', arrowClass = 'fundamental-arrow-flat';
-      if (!isNaN(actualNum) && !isNaN(prevNum)) {
-        if (actualNum > prevNum) { arrow = ' ↑'; arrowClass = 'fundamental-arrow-up'; }
-        else if (actualNum < prevNum) { arrow = ' ↓'; arrowClass = 'fundamental-arrow-down'; }
-      }
-      const prevStr = d.previous ? `← ${d.previous}` : '';
-      return `<tr>
-        <td>${name}</td>
-        <td><span class="fundamental-actual">${d.actual || '—'}</span><span class="${arrowClass}">${arrow}</span></td>
-        <td class="fundamental-prev">${prevStr}</td>
-        <td class="fundamental-date">${d.date || ''}</td>
-      </tr>`;
-    }).join('');
-
-    return `<div class="fundamental-currency-block">
-      <div class="fundamental-cur-header" style="color:${color}">${cur}</div>
-      <table class="fundamental-table">${indRows}</table>
-    </div>`;
-  }).join('');
-}
-
 // ── COT POSITIONING ──────────────────────────────────────
 async function fetchCOT() {
   try {
@@ -1408,15 +1354,19 @@ async function fetchCOT() {
 
 function renderCOT() {
   const grid = document.getElementById('cotGrid');
-  const dateEl = document.getElementById('cotReportDate');
+  const badge = document.getElementById('cotReportBadge');
+  const staleBadge = document.getElementById('cotStaleBadge');
+
   if (!cotData || !cotData.positions || Object.keys(cotData.positions).length === 0) {
+    if (badge) badge.textContent = 'Belum tersedia';
     grid.innerHTML = '<div class="cot-empty">Data COT belum tersedia — dirilis setiap Jumat 3:30 PM ET.</div>';
     return;
   }
 
-  if (cotData.report_date) {
-    dateEl.textContent = (cotData.stale ? '⚠ ' : '') + 'Per ' + cotData.report_date;
+  if (cotData.report_date && badge) {
+    badge.textContent = 'Posisi per Selasa, ' + cotData.report_date;
   }
+  if (staleBadge) staleBadge.style.display = cotData.stale ? 'inline' : 'none';
 
   const ORDER = ['EUR','GBP','JPY','CAD','AUD','NZD','CHF'];
   const CUR_COLORS_COT = {
