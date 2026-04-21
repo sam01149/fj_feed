@@ -20,9 +20,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-cache');
 
-  // Serve Redis cache if fresh
+  // Serve Redis cache if fresh (v2 = new format with lev_net + am_net)
   try {
-    const cached = await redisCmd('GET', 'cot_cache');
+    const cached = await redisCmd('GET', 'cot_cache_v2');
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Date.now() - new Date(parsed.fetched_at).getTime() < CACHE_TTL) {
@@ -52,7 +52,7 @@ module.exports = async function handler(req, res) {
     console.error('CFTC fetch failed:', e.message);
     // Return stale cache rather than error
     try {
-      const stale = await redisCmd('GET', 'cot_cache');
+      const stale = await redisCmd('GET', 'cot_cache_v2');
       if (stale) return res.status(200).json({ ...JSON.parse(stale), stale: true });
     } catch(e2) {}
     return res.status(502).json({ error: 'CFTC unavailable: ' + e.message });
@@ -165,7 +165,7 @@ module.exports = async function handler(req, res) {
     fetched_at: new Date().toISOString(),
   };
 
-  redisCmd('SET', 'cot_cache', JSON.stringify(payload)).catch(() => {});
+  redisCmd('SET', 'cot_cache_v2', JSON.stringify(payload)).catch(() => {});
   return res.status(200).json(payload);
 };
 
