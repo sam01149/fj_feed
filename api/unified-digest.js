@@ -140,8 +140,115 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
     }
   }
 
-  return res.status(200).json({ article, method, news_count: recentItems.length, cal_count: calEvents.length, generated_at: new Date().toISOString() });
+  // ── 6. Groq Call 2: CB Bias Assessment ──────────────────
+  let biasUpdated = [];
+  if (GROQ_KEY && recentItems.length > 0) {
+    const CB_KEYWORDS = {
+      USD: ['fed ','fomc','powell','goolsbee','waller','kashkari','warsh','federal reserve','us inflation','us gdp','us jobs','nfp','us cpi'],
+      EUR: ['ecb','lagarde','lane','schnabel','euro zone','eurozone','euro area','eu inflation','eu gdp'],
+      GBP: ['boe','bank of england','bailey','pill','gbp','sterling','uk inflation','uk gdp','uk jobs','claimant'],
+      JPY: ['boj','bank of japan','ueda','japan inflation','japan gdp','yen','japanese'],
+      CAD: ['boc','bank of canada','macklem','canada inflation','canada gdp','canadian'],
+      AUD: ['rba','reserve bank of australia','bullock','australia inflation','australia gdp','aussie'],
+      NZD: ['rbnz','reserve bank of new zealand','orr','new zealand inflation','new zealand gdp','kiwi'],
+      CHF: ['snb','swiss national bank','schlegel','switzerland','swiss franc','franc'],
+    };
+
+    // Find which currencies have relevant headlines
+    const relevantCurrencies = [];
+    const headlinesLower = recentItems.map(i => i.title.toLowerCase());
+    for (const [cur, kws] of Object.entries(CB_KEYWORDS)) {
+      if (kws.some(kw => headlinesLower.some(h => h.includes(kw)))) {
+        relevantCurrencies.push(cur);
+      }
+    }
+
+    if (relevantCurrencies.length > 0) {
+      const biasPrompt = `You are a central bank policy analyst. Based ONLY on the following recent financial news headlines, assess the current monetary policy stance for each central bank mentioned.
+
+Headlines:
+${recentItems.map((i,idx) => `${idx+1}. ${i.title}`).join('
+')}
+
+For each of these currencies that have relevant headlines: ${relevantCurrencies.join(', ')}
+
+Return ONLY a valid JSON object. No explanation, no markdown, no code block. Just the raw JSON.
+Use ONLY these exact bias values: "Hawkish", "Cautious Hawkish", "Neutral", "Data Dependent", "On Hold", "Cautious Dovish", "Dovish", "Split"
+
+Example format:
+{"USD":"Cautious Hawkish","EUR":"Dovish"}
+
+Only include currencies where you have enough evidence from the headlines. If insufficient evidence for a currency, omit it.`;
+
+      try {
+        const biasRes = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+          body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages: [{ role: 'user', content: biasPrompt }],
+            temperature: 0.1,
+            max_tokens: 200,
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (biasRes.ok) {
+          const biasData = await biasRes.json();
+          const rawBias = biasData?.choices?.[0]?.message?.content?.trim() || '';
+
+          // Parse JSON — strip any accidental markdown
+          const clean = rawBias.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+
+          const VALID_BIASES = ['Hawkish','Cautious Hawkish','Neutral','Data Dependent','On Hold','Cautious Dovish','Dovish','Split'];
+          const now = new Date().toISOString();
+
+          // Load existing bias from Redis
+          let existing = {};
+          try {
+            const raw = await redisCmd('GET', 'cb_bias');
+            if (raw) existing = JSON.parse(raw);
+          } catch(e) {}
+
+          // Merge new bias
+          for (const [cur, bias] of Object.entries(parsed)) {
+            if (VALID_BIASES.includes(bias)) {
+              existing[cur] = { bias, updated_at: now };
+              biasUpdated.push(cur);
+            }
+          }
+
+          // Save back to Redis (no expiry — persist until next update)
+          await redisCmd('SET', 'cb_bias', JSON.stringify(existing));
+        }
+      } catch(e) {
+        console.warn('Bias assessment failed:', e.message);
+      }
+    }
+  }
+
+  return res.status(200).json({
+    article, method,
+    news_count:   recentItems.length,
+    cal_count:    calEvents.length,
+    bias_updated: biasUpdated,
+    generated_at: new Date().toISOString(),
+  });
 };
+
+async function redisCmd(...args) {
+  const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
+  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!REDIS_URL || !REDIS_TOKEN) return null;
+  const res = await fetch(REDIS_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+    signal: AbortSignal.timeout(5000),
+  });
+  return (await res.json()).result;
+}
 
 function toDateStr(d) { return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`; }
 
