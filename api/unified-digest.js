@@ -227,8 +227,22 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
 
           // Save back to Redis
           if (biasUpdated.length > 0) {
-            await redisCmd('SET', 'cb_bias', JSON.stringify(existing));
-            console.log('CB bias saved:', JSON.stringify(biasUpdated));
+            try {
+              const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
+              const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+              console.log('Redis URL:', REDIS_URL ? REDIS_URL.substring(0,40) : 'NOT SET');
+              const saveRes = await fetch(REDIS_URL, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify(['SET', 'cb_bias', JSON.stringify(existing)]),
+                signal: AbortSignal.timeout(8000),
+              });
+              const saveData = await saveRes.json();
+              console.log('CB bias Redis save result:', JSON.stringify(saveData));
+              console.log('CB bias saved:', JSON.stringify(biasUpdated));
+            } catch(saveErr) {
+              console.error('CB bias Redis save FAILED:', saveErr.message);
+            }
           }
         }
       } catch(e) {
