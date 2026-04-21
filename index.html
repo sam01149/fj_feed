@@ -428,6 +428,76 @@ body {
 }
 
 .cal-empty { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+/* ── CENTRAL BANK TRACKER ── */
+.cb-section {
+  padding: 10px 12px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.cb-section-title {
+  font-size: 9px; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cb-section-title span { color: var(--green); }
+.cb-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 6px; margin-bottom: 10px;
+}
+.cb-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 10px;
+  position: relative; overflow: hidden;
+  transition: border-color .15s;
+}
+.cb-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; border-radius: 2px 0 0 2px;
+}
+.cb-USD::before { background: #60a5fa; }
+.cb-EUR::before { background: var(--accent); }
+.cb-GBP::before { background: var(--purple); }
+.cb-JPY::before { background: var(--yellow); }
+.cb-CAD::before { background: var(--orange); }
+.cb-AUD::before { background: var(--green); }
+.cb-NZD::before { background: #34d399; }
+.cb-CHF::before { background: var(--red); }
+
+.cb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.cb-currency { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
+.cb-short { font-size: 8px; color: var(--muted); letter-spacing: .3px; margin-top: 1px; }
+.cb-rate {
+  font-family: 'DM Mono', monospace; font-size: 15px;
+  color: var(--text); font-weight: 400; margin-bottom: 4px;
+}
+.cb-rate-label { font-size: 7px; color: var(--muted); letter-spacing: .3px; margin-bottom: 6px; }
+.cb-decision {
+  font-size: 8px; padding: 2px 6px; border-radius: 3px;
+  letter-spacing: .4px; display: inline-block; margin-bottom: 5px;
+}
+.cb-decision.hold { background: rgba(255,255,255,.06); color: var(--muted); }
+.cb-decision.cut  { background: rgba(0,200,150,.12); color: var(--green); }
+.cb-decision.hike { background: rgba(255,71,87,.12); color: #ff4757; }
+
+.cb-bias {
+  font-size: 8px; padding: 2px 6px; border-radius: 3px;
+  letter-spacing: .3px; display: inline-block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+.cb-bias.hawkish          { background: rgba(255,71,87,.15);   color: #ff4757; }
+.cb-bias.cautious-hawkish { background: rgba(255,107,53,.12);  color: var(--orange); }
+.cb-bias.neutral          { background: rgba(255,255,255,.06); color: var(--muted); }
+.cb-bias.data-dependent   { background: rgba(0,229,255,.08);   color: var(--accent); }
+.cb-bias.on-hold          { background: rgba(255,255,255,.06); color: var(--muted); }
+.cb-bias.cautious-dovish  { background: rgba(52,211,153,.1);   color: #34d399; }
+.cb-bias.dovish           { background: rgba(0,200,150,.12);   color: var(--green); }
+.cb-bias.split            { background: rgba(167,139,250,.12); color: var(--purple); }
+.cb-bias.unknown          { background: rgba(255,255,255,.04); color: var(--muted); font-style: italic; }
+
+.cb-updated { font-size: 7px; color: var(--muted); margin-top: 4px; }
+
 .cal-refresh-btn {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 12px; border-radius: 5px;
@@ -539,6 +609,17 @@ body {
 
 <!-- CALENDAR PANEL -->
 <div class="feed-scroll" id="calPanel" style="display:none">
+  <div class="cb-section" id="cbSection">
+    <div class="cb-section-title">
+      <span>Central Bank Tracker</span>
+      <span id="cbUpdatedAt" style="color:var(--muted);font-size:8px"></span>
+    </div>
+    <div class="cb-grid" id="cbGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted);font-size:11px">
+        Bias akan diperbarui otomatis saat Generate Ringkasan
+      </div>
+    </div>
+  </div>
   <div class="cal-toolbar">
     <div class="cal-filter-group">
       <button class="cal-filter-btn active-all" id="calFilterAll" onclick="setCalFilter('all')">Semua</button>
@@ -619,6 +700,10 @@ let activeView   = 'feed';
 // Calendar state
 let calData       = null;
 let calFetchedAt  = 0;
+
+// CB Tracker state
+let cbData        = null;
+let cbFetchedAt   = 0;
 
 // Ringkasan state
 let ringkasanCache = null;
@@ -972,6 +1057,9 @@ document.querySelectorAll('.ftab').forEach(btn => {
       const now = Date.now();
       if (!calData || (now - calFetchedAt) > 15 * 60 * 1000) fetchCalendar();
       else renderCalendar();
+      // Always refresh CB status when switching to CAL
+      if (!cbData || (now - cbFetchedAt) > 5 * 60 * 1000) fetchCBStatus();
+      else renderCBTracker();
     } else {
       activeView = 'feed';
       document.getElementById('feedScroll').style.display = 'block';
@@ -1001,6 +1089,91 @@ async function fetchCalendar() {
   } finally {
     if (btn) btn.classList.remove('spinning');
   }
+}
+
+// ── CB TRACKER ───────────────────────────────────────────
+
+const CUR_COLORS_CB = {
+  USD:'#60a5fa', EUR:'#00e5ff', GBP:'#a78bfa',
+  JPY:'#ffd32a', CAD:'#ff6b35', AUD:'#00c896',
+  NZD:'#34d399', CHF:'#ff4757',
+};
+
+async function fetchCBStatus() {
+  try {
+    const res = await fetch('/api/cb-status', { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    cbData = data.banks;
+    cbFetchedAt = Date.now();
+    renderCBTracker();
+  } catch(e) {
+    console.warn('CB fetch failed:', e.message);
+  }
+}
+
+function renderCBTracker() {
+  const grid = document.getElementById('cbGrid');
+  if (!cbData || cbData.length === 0) return;
+
+  const BIAS_CLASS = {
+    'Hawkish':          'hawkish',
+    'Cautious Hawkish': 'cautious-hawkish',
+    'Neutral':          'neutral',
+    'Data Dependent':   'data-dependent',
+    'On Hold':          'on-hold',
+    'Cautious Dovish':  'cautious-dovish',
+    'Dovish':           'dovish',
+    'Split':            'split',
+  };
+
+  grid.innerHTML = cbData.map(cb => {
+    const decisionText = cb.last_bps > 0
+      ? `+${cb.last_bps}bps Hike`
+      : cb.last_bps < 0
+      ? `${cb.last_bps}bps Cut`
+      : 'Hold';
+    const decisionClass = cb.last_bps > 0 ? 'hike' : cb.last_bps < 0 ? 'cut' : 'hold';
+
+    const biasLabel = cb.bias || '—';
+    const biasClass = cb.bias ? (BIAS_CLASS[cb.bias] || 'unknown') : 'unknown';
+
+    const updatedStr = cb.bias_updated
+      ? fmtCBTime(cb.bias_updated)
+      : '';
+
+    return `
+      <div class="cb-card cb-${cb.currency}">
+        <div class="cb-header">
+          <div>
+            <div class="cb-currency">${cb.currency}</div>
+            <div class="cb-short">${cb.short}</div>
+          </div>
+        </div>
+        <div class="cb-rate">${cb.rate.toFixed(2)}%</div>
+        <div class="cb-rate-label">Interest Rate</div>
+        <div class="cb-decision ${decisionClass}">${decisionText}</div>
+        <br>
+        <div class="cb-bias ${biasClass}">${biasLabel}</div>
+        ${updatedStr ? `<div class="cb-updated">↻ ${updatedStr}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // Update last analyzed timestamp
+  const latestUpdate = cbData
+    .filter(c => c.bias_updated)
+    .map(c => c.bias_updated)
+    .sort()
+    .pop();
+  if (latestUpdate) {
+    document.getElementById('cbUpdatedAt').textContent = 'Updated ' + fmtCBTime(latestUpdate);
+  }
+}
+
+function fmtCBTime(iso) {
+  const d = new Date(iso);
+  const wib = new Date(d.getTime() + 7*3600000);
+  return `${String(wib.getUTCHours()).padStart(2,'0')}:${String(wib.getUTCMinutes()).padStart(2,'0')} WIB`;
 }
 
 // Calendar filter state
