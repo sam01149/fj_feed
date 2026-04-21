@@ -7,6 +7,7 @@ const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const MAJOR_CURRENCIES = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
 
 module.exports = async function handler(req, res) {
+  console.log('market-digest v2 START', new Date().toISOString());
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-cache');
   const GROQ_KEY = process.env.GROQ_API_KEY;
