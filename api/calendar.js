@@ -95,6 +95,6 @@ function convertToWIB(timeStr) {
   const min = parseInt(m[2]), ampm = m[3].toLowerCase();
   if (ampm === 'pm' && hour !== 12) hour += 12;
   if (ampm === 'am' && hour === 12) hour = 0;
-  const isDST = (new Date().getUTCMonth() + 1) >= 3 && (new Date().getUTCMonth() + 1) <= 10;
-  return `${String((hour + (isDST ? 11 : 12)) % 24).padStart(2,'0')}:${String(min).padStart(2,'0')} WIB`;
+  // FF XML stores time in UTC — convert to WIB (UTC+7)
+  return `${String((hour + 7) % 24).padStart(2,'0')}:${String(min).padStart(2,'0')} WIB`;
 }
