@@ -338,6 +338,54 @@ body {
 .fundamental-arrow-flat { color: var(--muted); }
 .fundamental-date { font-size: 8px; color: var(--muted); }
 
+/* ── COT POSITIONING ── */
+.cot-section {
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.cot-title {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 9px; letter-spacing: 1px; color: var(--muted);
+  text-transform: uppercase; padding: 4px 0 10px;
+}
+.cot-subtitle { font-size: 8px; color: var(--muted); font-style: italic; margin-top: -6px; margin-bottom: 8px; }
+.cot-empty {
+  font-size: 11px; color: var(--muted); text-align: center;
+  padding: 12px 0 8px; font-style: italic;
+}
+.cot-row {
+  display: grid;
+  grid-template-columns: 38px 1fr auto auto;
+  align-items: center; gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.cot-row:last-child { border-bottom: none; }
+.cot-cur {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 11px;
+}
+.cot-bar-wrap {
+  height: 6px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden;
+  position: relative;
+}
+.cot-bar {
+  height: 100%; border-radius: 3px; transition: width .3s;
+}
+.cot-bar.long  { background: var(--green); }
+.cot-bar.short { background: var(--red); margin-left: auto; }
+.cot-net {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  text-align: right; min-width: 56px;
+}
+.cot-net.long  { color: var(--green); }
+.cot-net.short { color: var(--red); }
+.cot-change {
+  font-size: 9px; text-align: right; min-width: 44px; color: var(--muted);
+}
+.cot-change.up   { color: var(--green); }
+.cot-change.down { color: var(--red); }
+
 /* ── CALENDAR TAB ── */
 .ftab[data-view="cal"] { color: var(--green); }
 .ftab[data-view="cal"].active {
@@ -675,6 +723,17 @@ body {
     </div>
   </div>
 
+  <!-- COT POSITIONING -->
+  <div class="cot-section" id="cotSection">
+    <div class="cot-title">
+      <span>COT Positioning — Leveraged Funds</span>
+      <span id="cotReportDate" style="color:var(--muted);font-size:8px"></span>
+    </div>
+    <div id="cotGrid">
+      <div class="cot-empty">Memuat data COT...</div>
+    </div>
+  </div>
+
   <div class="cal-toolbar">
     <div class="cal-filter-group">
       <button class="cal-filter-btn active-all" id="calFilterAll" onclick="setCalFilter('all')">Semua</button>
@@ -766,6 +825,10 @@ let ringkasanCache = null;
 // Fundamental Snapshot state
 let fundamentalData      = null;
 let fundamentalFetchedAt = 0;
+
+// COT state
+let cotData      = null;
+let cotFetchedAt = 0;
 
 // ── SERVICE WORKER ───────────────────────────────────────
 if ('serviceWorker' in navigator) {
@@ -1126,6 +1189,9 @@ document.querySelectorAll('.ftab').forEach(btn => {
       // Refresh fundamental snapshot when switching to CAL
       if (!fundamentalData || (now - fundamentalFetchedAt) > 10 * 60 * 1000) fetchFundamentals();
       else renderFundamentals();
+      // Refresh COT when switching to CAL (cached 6h server-side)
+      if (!cotData || (now - cotFetchedAt) > 30 * 60 * 1000) fetchCOT();
+      else renderCOT();
     } else {
       activeView = 'feed';
       document.getElementById('feedScroll').style.display = 'block';
@@ -1312,6 +1378,74 @@ function renderFundamentals() {
     return `<div class="fundamental-currency-block">
       <div class="fundamental-cur-header" style="color:${color}">${cur}</div>
       <table class="fundamental-table">${indRows}</table>
+    </div>`;
+  }).join('');
+}
+
+// ── COT POSITIONING ──────────────────────────────────────
+async function fetchCOT() {
+  try {
+    const res = await fetch('/api/cot', { signal: AbortSignal.timeout(25000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    cotData      = data;
+    cotFetchedAt = Date.now();
+    renderCOT();
+  } catch(e) {
+    console.warn('COT fetch failed:', e.message);
+    document.getElementById('cotGrid').innerHTML =
+      '<div class="cot-empty">COT data tidak tersedia saat ini.</div>';
+  }
+}
+
+function renderCOT() {
+  const grid = document.getElementById('cotGrid');
+  const dateEl = document.getElementById('cotReportDate');
+  if (!cotData || !cotData.positions || Object.keys(cotData.positions).length === 0) {
+    grid.innerHTML = '<div class="cot-empty">Data COT belum tersedia — dirilis setiap Jumat 3:30 PM ET.</div>';
+    return;
+  }
+
+  if (cotData.report_date) {
+    dateEl.textContent = (cotData.stale ? '⚠ ' : '') + 'Per ' + cotData.report_date;
+  }
+
+  const ORDER = ['EUR','GBP','JPY','CAD','AUD','NZD','CHF'];
+  const CUR_COLORS_COT = {
+    EUR:'#00e5ff', GBP:'#a78bfa', JPY:'#ffd32a',
+    CAD:'#ff6b35', AUD:'#00c896', NZD:'#34d399', CHF:'#ff4757',
+  };
+
+  // Max abs net for bar normalization
+  const nets = ORDER.map(c => cotData.positions[c]?.net || 0);
+  const maxNet = Math.max(...nets.map(Math.abs)) || 1;
+
+  function fmtK(n) {
+    if (n === null || n === undefined) return '—';
+    const abs = Math.abs(n);
+    if (abs >= 1000) return (n > 0 ? '+' : '') + (n / 1000).toFixed(1) + 'K';
+    return (n > 0 ? '+' : '') + n;
+  }
+
+  grid.innerHTML = ORDER.filter(c => cotData.positions[c]).map(cur => {
+    const d = cotData.positions[cur];
+    const color   = CUR_COLORS_COT[cur] || '#fff';
+    const isLong  = d.net >= 0;
+    const barPct  = Math.min(100, Math.round(Math.abs(d.net) / maxNet * 100));
+    const netStr  = fmtK(d.net);
+    const chgStr  = d.change_net !== null ? fmtK(d.change_net) : '—';
+    const chgClass = d.change_net === null ? '' : d.change_net > 0 ? 'up' : d.change_net < 0 ? 'down' : '';
+    const chgIcon  = d.change_net > 0 ? '▲' : d.change_net < 0 ? '▼' : '→';
+
+    const barHtml = isLong
+      ? `<div class="cot-bar-wrap"><div class="cot-bar long" style="width:${barPct}%"></div></div>`
+      : `<div class="cot-bar-wrap" style="direction:rtl"><div class="cot-bar short" style="width:${barPct}%"></div></div>`;
+
+    return `<div class="cot-row">
+      <span class="cot-cur" style="color:${color}">${cur}</span>
+      ${barHtml}
+      <span class="cot-net ${isLong ? 'long' : 'short'}">${netStr}</span>
+      <span class="cot-change ${chgClass}">${chgIcon} ${chgStr}</span>
     </div>`;
   }).join('');
 }
