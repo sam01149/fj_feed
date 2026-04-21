@@ -970,6 +970,10 @@ async function generateRingkasan() {
     const data = await res.json();
     ringkasanCache = data;
     renderRingkasan();
+    // Refresh CB tracker if bias was updated
+    if (data.bias_updated && data.bias_updated.length > 0) {
+      fetchCBStatus();
+    }
   } catch(e) {
     showToast('Gagal', 'Ringkasan tidak merespons: ' + e.message, 4000);
     btn.classList.remove('loading');
