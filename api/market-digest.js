@@ -70,12 +70,25 @@ module.exports = async function handler(req, res) {
   const headlinesBlock = recentItems.length > 0 ? recentItems.map((i,idx)=>`${idx+1}. ${i.title}`).join('\n') : '(Tidak ada headline)';
   const calBlock = calEvents.length > 0 ? calEvents.map(e=>`- ${e.date} | ${e.time_wib} | ${e.currency} | ${e.event}`).join('\n') : '(Tidak ada event high-impact)';
 
-  // 4. Gemini
+  // 3b. Load digest history
+  let digestHistory = [];
+  try {
+    const rawHist = await redisCmd('GET', 'digest_history');
+    if (rawHist) digestHistory = JSON.parse(rawHist);
+  } catch(e) {}
+  const historyBlock = digestHistory.length > 0
+    ? digestHistory.map(h => `[${h.wib}] ${h.summary}`).join('\n')
+    : '(Belum ada riwayat — ini sesi pertama)';
+
+  // 4. Groq Call 1: market briefing
   let article = null, method = 'groq';
   if (GROQ_KEY && recentItems.length > 0) {
     const prompt = `Kamu adalah analis pasar keuangan senior yang menulis market briefing harian untuk trader forex Indonesia dengan gaya macro discretionary.
 
 WAKTU SAAT INI: ${dateStr}, ${timeStr}
+
+=== RIWAYAT BRIEFING SEBELUMNYA (konteks narasi, max 7 sesi) ===
+${historyBlock}
 
 === HEADLINE BERITA TERKINI (${recentItems.length} berita, 6 jam terakhir) ===
 ${headlinesBlock}
@@ -88,7 +101,7 @@ Tulis market briefing komprehensif untuk trader profesional. Tidak ada batasan j
 
 Cakup semua tema berikut yang relevan berdasarkan data di atas (lewati jika tidak ada data yang relevan):
 
-Kondisi pasar dan narrative macro dominan — apa yang sedang terjadi, mengapa penting, dan bagaimana korelasinya antar aset.
+Kondisi pasar dan narrative macro dominan — apa yang sedang terjadi, mengapa penting, dan bagaimana korelasinya antar aset. Jika ada pergeseran tema atau sentimen dibanding riwayat sebelumnya, sebutkan secara eksplisit.
 
 Dampak per currency dan pair — untuk setiap currency atau pair yang terdampak oleh headline, jelaskan arah tekanan, sentimen pasar terhadap CB terkait, dan potensi pergerakan. Sebutkan pair spesifik (EUR/USD, USD/JPY, GBP/USD, dll) kalau relevan.
 
@@ -146,6 +159,19 @@ Balas hanya dengan briefing tersebut.`;
       const calPart = calEvents.length > 0 ? `Event high-impact terdekat adalah ${calEvents[0].event} (${calEvents[0].currency}) pada ${calEvents[0].time_wib}, ${calEvents[0].date}.` : 'Tidak ada event high-impact terjadwal.';
       article = parts.join(' ') + '\n\n' + calPart;
     }
+  }
+
+  // ── 5b. Save current digest to history (max 7 entries) ──
+  if (article && method === 'groq') {
+    try {
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const wibStr = `${String(wibNow.getUTCDate()).padStart(2,'0')} ${MONTHS[wibNow.getUTCMonth()]} ${String(wibNow.getUTCHours()).padStart(2,'0')}:${String(wibNow.getUTCMinutes()).padStart(2,'0')} WIB`;
+      const summary = article.replace(/\n/g, ' ').slice(0, 200);
+      digestHistory.push({ at: new Date().toISOString(), wib: wibStr, summary });
+      if (digestHistory.length > 7) digestHistory.splice(0, digestHistory.length - 7);
+      await redisCmd('SET', 'digest_history', JSON.stringify(digestHistory));
+      console.log('Digest history saved, entries:', digestHistory.length);
+    } catch(e) { console.warn('Digest history save failed:', e.message); }
   }
 
   // ── 6. Groq Call 2: CB Bias Assessment ──────────────────
