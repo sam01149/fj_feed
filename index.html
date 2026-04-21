@@ -963,7 +963,7 @@ async function generateRingkasan() {
   btn.querySelector('span').textContent = 'Generating...';
 
   try {
-    const res = await fetch('/api/unified-digest', {
+    const res = await fetch('/api/market-digest', {
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
