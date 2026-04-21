@@ -317,8 +317,7 @@ function convertToWIB(timeStr) {
   const m=timeStr.match(/(\d{1,2}):(\d{2})(am|pm)/i); if(!m) return timeStr;
   let hour=parseInt(m[1]); const min=parseInt(m[2]), ampm=m[3].toLowerCase();
   if(ampm==='pm'&&hour!==12)hour+=12; if(ampm==='am'&&hour===12)hour=0;
-  const isDST=(new Date().getUTCMonth()+1)>=3&&(new Date().getUTCMonth()+1)<=10;
-  return `${String((hour+(isDST?11:12))%24).padStart(2,'0')}:${String(min).padStart(2,'0')} WIB`;
+  return `${String((hour+7)%24).padStart(2,'0')}:${String(min).padStart(2,'0')} WIB`;
 }
 
 function detectCat(title) {
