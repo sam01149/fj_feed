@@ -164,21 +164,24 @@ Balas hanya dengan tiga paragraf tersebut, tidak ada teks lain.`;
     }
 
     if (relevantCurrencies.length > 0) {
-      const biasPrompt = `You are a central bank policy analyst. Based ONLY on the following recent financial news headlines, assess the current monetary policy stance for each central bank mentioned.
-
-Headlines:
-${recentItems.map((i,idx) => `${idx+1}. ${i.title}`).join('
-')}
-
-For each of these currencies that have relevant headlines: ${relevantCurrencies.join(', ')}
-
-Return ONLY a valid JSON object. No explanation, no markdown, no code block. Just the raw JSON.
-Use ONLY these exact bias values: "Hawkish", "Cautious Hawkish", "Neutral", "Data Dependent", "On Hold", "Cautious Dovish", "Dovish", "Split"
-
-Example format:
-{"USD":"Cautious Hawkish","EUR":"Dovish"}
-
-Only include currencies where you have enough evidence from the headlines. If insufficient evidence for a currency, omit it.`;
+      const biasHeadlines = recentItems.map((i,idx) => (idx+1) + '. ' + i.title).join('\n');
+      const biasCurrencies = relevantCurrencies.join(', ');
+      const biasPrompt = [
+        'You are a central bank policy analyst. Based ONLY on the following recent financial news headlines, assess the current monetary policy stance for each central bank mentioned.',
+        '',
+        'Headlines:',
+        biasHeadlines,
+        '',
+        'For each of these currencies that have relevant headlines: ' + biasCurrencies,
+        '',
+        'Return ONLY a valid JSON object. No explanation, no markdown, no code block. Just the raw JSON.',
+        'Use ONLY these exact bias values: "Hawkish", "Cautious Hawkish", "Neutral", "Data Dependent", "On Hold", "Cautious Dovish", "Dovish", "Split"',
+        '',
+        'Example format:',
+        '{"USD":"Cautious Hawkish","EUR":"Dovish"}',
+        '',
+        'Only include currencies where you have enough evidence from the headlines. If insufficient evidence for a currency, omit it.',
+      ].join('\n');
 
       try {
         const biasRes = await fetch(GROQ_URL, {
