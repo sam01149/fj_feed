@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
     } catch(e) { console.warn('RSS attempt failed:', e.message); }
   }
 
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+  const cutoff = Date.now() - 12 * 60 * 60 * 1000;
   const recentItems = rssItems.filter(i => new Date(i.pubDate).getTime() > cutoff).slice(0, 80);
 
   // 2. Calendar
@@ -83,39 +83,34 @@ module.exports = async function handler(req, res) {
   // 4. Groq Call 1: market briefing
   let article = null, method = 'groq';
   if (GROQ_KEY && recentItems.length > 0) {
-    const prompt = `Kamu adalah analis pasar keuangan senior yang menulis market briefing harian untuk trader forex Indonesia dengan gaya macro discretionary.
+    const prompt = `Kamu adalah analis pasar keuangan senior yang menulis untuk trader forex Indonesia dengan gaya macro discretionary. Kamu menulis untuk trader yang sudah berpengalaman — tidak perlu penjelasan dasar.
 
 WAKTU SAAT INI: ${dateStr}, ${timeStr}
 
-=== RIWAYAT BRIEFING SEBELUMNYA (konteks narasi, max 7 sesi) ===
-${historyBlock}
-
-=== HEADLINE BERITA TERKINI (${recentItems.length} berita, 6 jam terakhir) ===
+=== HEADLINE BERITA TERKINI (${recentItems.length} berita, 12 jam terakhir) ===
 ${headlinesBlock}
 
 === EVENT KALENDER EKONOMI HIGH-IMPACT (3 hari ke depan) ===
 ${calBlock}
 
+=== RINGKASAN SESI SEBELUMNYA ===
+${historyBlock}
+
 TUGAS:
-Tulis market briefing komprehensif untuk trader profesional. Tidak ada batasan jumlah paragraf — tulis sepanjang yang diperlukan agar semua informasi relevan tersampaikan. Bisa lebih atau kurang dari 3 paragraf tergantung kompleksitas situasi pasar saat ini.
+Tulis analisis pasar berdasarkan data di atas.
 
-Cakup semua tema berikut yang relevan berdasarkan data di atas (lewati jika tidak ada data yang relevan):
-
-Kondisi pasar dan narrative macro dominan — apa yang sedang terjadi, mengapa penting, dan bagaimana korelasinya antar aset. Jika ada pergeseran tema atau sentimen dibanding riwayat sebelumnya, sebutkan secara eksplisit.
-
-Dampak per currency dan pair — untuk setiap currency atau pair yang terdampak oleh headline, jelaskan arah tekanan, sentimen pasar terhadap CB terkait, dan potensi pergerakan. Sebutkan pair spesifik (EUR/USD, USD/JPY, GBP/USD, dll) kalau relevan.
-
-Konteks kalender — event high-impact paling krusial dalam 3 hari ke depan beserta waktu WIB-nya. Apakah event tersebut mengkonfirmasi atau mengontradiksi kondisi pasar saat ini, dan implikasinya untuk timing entry/exit.
-
-Risiko dan divergensi — jika ada geopolitical risk, divergensi kebijakan antar CB, atau kondisi pasar yang memerlukan kehati-hatian ekstra sebelum mengambil posisi.
-
-FORMAT:
-- Paragraf naratif mengalir tanpa bullet list, tanpa heading, tanpa label section, tanpa emoji, tanpa bold/italic
-- Kalimat aktif dan langsung ke poin
+ATURAN WAJIB:
+- Setiap kalimat harus membawa informasi yang tidak bisa disimpulkan sendiri oleh trader hanya dari melihat harga
+- Kalau ada sinyal yang kontradiktif antara satu berita dengan berita lain, sebutkan secara eksplisit — jangan dihindari atau dihaluskan
+- Tidak ada kalimat generik: dilarang tulis "trader harus berhati-hati", "pasar masih volatile", "pergerakan tergantung data", atau frasa serupa yang tidak membawa informasi spesifik
+- Kesimpulan bias harus tegas — konfirmasi atau kontradiksi terhadap narrative macro yang berlaku, bukan "tergantung"
+- Kalau data di atas tidak cukup untuk kesimpulan tertentu, nyatakan itu secara eksplisit daripada mengkarang
+- Singgung pidato atau statement pejabat central bank kalau ada di headlines — ini penting untuk bias assessment
+- Panjang tulisan mengikuti kadar informasi yang tersedia — jangan padding, jangan potong kalau masih ada yang substansial
 - Seluruh output dalam Bahasa Indonesia
-- Tidak ada kalimat pembuka seperti "Berikut adalah..." atau penutup seperti "Demikian briefing..."
+- Tidak ada bullet list, tidak ada heading, tidak ada emoji, tidak ada bold
 
-Balas hanya dengan briefing tersebut.`;
+Tulis analisis sekarang.`;
 
     try {
       const groqRes = await fetch(GROQ_URL, {
@@ -148,7 +143,7 @@ Balas hanya dengan briefing tersebut.`;
   if (!article) {
     method = 'fallback';
     if (recentItems.length === 0) {
-      article = 'Tidak ada berita baru dalam 6 jam terakhir.';
+      article = 'Tidak ada berita baru dalam 12 jam terakhir.';
     } else {
       const catGroups = {};
       recentItems.forEach(i => { const c=detectCat(i.title); if(!catGroups[c])catGroups[c]=[]; catGroups[c].push(i.title); });
