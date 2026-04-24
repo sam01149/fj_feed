@@ -607,6 +607,62 @@ body {
   border:none; cursor:pointer;
 }
 
+/* ── ECONOMIC DATA TAB ── */
+.ftab[data-view="ecodata"] { color: #60a5fa; }
+.ftab[data-view="ecodata"].active {
+  color: var(--bg); background: #60a5fa;
+  border-radius: 4px 4px 0 0; border-bottom-color: #60a5fa;
+}
+.ecd-panel { padding: 12px 12px 24px; }
+.ecd-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.ecd-toolbar-left { display: flex; flex-direction: column; gap: 2px; }
+.ecd-panel-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
+.ecd-updated { font-size: 9px; color: var(--muted); }
+.ecd-refresh-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 5px;
+  border: 1px solid #60a5fa; background: transparent;
+  color: #60a5fa; font-family: 'DM Mono', monospace; font-size: 9px;
+  cursor: pointer; transition: all .2s;
+}
+.ecd-refresh-btn:active { background: #60a5fa; color: var(--bg); }
+.ecd-refresh-btn.spinning svg { animation: spin .7s linear infinite; }
+.ecd-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.ecd-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  position: relative; overflow: hidden;
+}
+.ecd-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; border-radius: 2px 0 0 2px;
+}
+.ecd-USD::before { background: #60a5fa; }
+.ecd-EUR::before { background: var(--accent); }
+.ecd-GBP::before { background: var(--purple); }
+.ecd-JPY::before { background: var(--yellow); }
+.ecd-CAD::before { background: var(--orange); }
+.ecd-AUD::before { background: var(--green); }
+.ecd-NZD::before { background: #34d399; }
+.ecd-CHF::before { background: var(--red); }
+.ecd-cur { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 1px; }
+.ecd-cb  { font-size: 8px; color: var(--muted); letter-spacing: .3px; margin-bottom: 9px; }
+.ecd-metric { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+.ecd-metric-label { font-size: 8px; color: var(--muted); letter-spacing: .2px; flex-shrink: 0; }
+.ecd-metric-right { display: flex; align-items: baseline; gap: 5px; }
+.ecd-val { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; }
+.ecd-chg { font-size: 9px; }
+.ecd-up   { color: var(--green); }
+.ecd-down { color: var(--red); }
+.ecd-flat { color: var(--muted); }
+.ecd-date { font-size: 7px; color: var(--muted); margin-top: 7px; border-top: 1px solid var(--border); padding-top: 5px; }
+.ecd-empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
 /* ── RESPONSIVE ── */
 @media (min-width: 768px) {
   .header { padding: 14px 24px; }
@@ -629,6 +685,9 @@ body {
   .cal-event-main { padding: 14px 18px 12px 20px; }
   .cal-event-name { font-size: 14px; }
   .cal-time { font-size: 13px; }
+  .ecd-panel { padding: 16px 24px 32px; }
+  .ecd-grid { gap: 10px; }
+  .ecd-cur { font-size: 15px; }
   .cot-panel-inner { padding: 16px 24px 32px; max-width: 700px; margin: 0 auto; }
   .cot-row { grid-template-columns: 50px 1fr auto auto; gap: 12px; padding: 7px 0; }
   .cot-cur { font-size: 13px; }
@@ -638,7 +697,8 @@ body {
 }
 
 @media (max-width: 480px) {
-  .cb-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .cb-grid  { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .ecd-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .cb-card { padding: 8px 10px; }
   .cb-currency { font-size: 12px; }
   .cb-rate { font-size: 14px; }
@@ -683,6 +743,7 @@ body {
 <!-- FILTER TABS -->
 <div class="filter-wrap" id="filterWrap">
   <button class="ftab" data-view="ringkasan" id="ringkasanTab">📋 RINGKASAN</button>
+  <button class="ftab" data-view="ecodata" id="ecoDataTab">📈 DATA</button>
   <button class="ftab active" data-cat="all">All</button>
   <button class="ftab" data-cat="market-moving">Mkt Moving</button>
   <button class="ftab" data-cat="forex">Forex</button>
@@ -735,6 +796,28 @@ body {
       </svg>
       <span>Generate Ringkasan</span>
     </button>
+  </div>
+</div>
+
+<!-- ECONOMIC DATA PANEL -->
+<div class="feed-scroll" id="ecoDataPanel" style="display:none">
+  <div class="ecd-panel">
+    <div class="ecd-toolbar">
+      <div class="ecd-toolbar-left">
+        <div class="ecd-panel-title">Economic Data</div>
+        <div class="ecd-updated" id="ecdUpdatedAt">Sumber: FRED (Federal Reserve)</div>
+      </div>
+      <button class="ecd-refresh-btn" id="ecdRefreshBtn" onclick="forceRefreshEcoData()">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        REFRESH
+      </button>
+    </div>
+    <div class="ecd-grid" id="ecdGrid">
+      <div class="ecd-empty" style="grid-column:1/-1">Memuat data ekonomi...</div>
+    </div>
   </div>
 </div>
 
@@ -863,6 +946,10 @@ let ringkasanCache = null;
 // COT state
 let cotData      = null;
 let cotFetchedAt = 0;
+
+// Economic Data state
+let ecoData      = null;
+let ecoFetchedAt = 0;
 
 // ── SERVICE WORKER ───────────────────────────────────────
 if ('serviceWorker' in navigator) {
@@ -1204,6 +1291,7 @@ document.querySelectorAll('.ftab').forEach(btn => {
 
     document.getElementById('feedScroll').style.display     = 'none';
     document.getElementById('ringkasanPanel').style.display = 'none';
+    document.getElementById('ecoDataPanel').style.display   = 'none';
     document.getElementById('calPanel').style.display       = 'none';
     document.getElementById('cotPanel').style.display       = 'none';
 
@@ -1212,6 +1300,12 @@ document.querySelectorAll('.ftab').forEach(btn => {
       activeView = 'ringkasan';
       document.getElementById('ringkasanPanel').style.display = 'block';
       renderRingkasan();
+    } else if (view === 'ecodata') {
+      activeView = 'ecodata';
+      document.getElementById('ecoDataPanel').style.display = 'block';
+      const now = Date.now();
+      if (!ecoData || (now - ecoFetchedAt) > 6 * 60 * 60 * 1000) fetchEcoData();
+      else renderEcoData();
     } else if (view === 'cal') {
       activeView = 'cal';
       document.getElementById('calPanel').style.display = 'block';
@@ -1425,6 +1519,127 @@ function renderCOT() {
     <div class="cot-group-label" style="margin-top:14px">Asset Manager <span style="color:var(--muted);font-size:8px;margin-left:4px">Institusi · Posisi jangka panjang</span></div>
     ${makeRows('am_net', 'am_change_net')}
   `;
+}
+
+// ── ECONOMIC DATA ─────────────────────────────────────────
+const CB_NAMES = {
+  USD: 'Federal Reserve', EUR: 'ECB', GBP: 'Bank of England',
+  JPY: 'Bank of Japan',   CAD: 'Bank of Canada', AUD: 'RBA',
+  NZD: 'RBNZ', CHF: 'SNB',
+};
+const CUR_ORDER_ECD = ['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF'];
+const CUR_COLORS_ECD = {
+  USD:'#60a5fa', EUR:'#00e5ff', GBP:'#a78bfa',
+  JPY:'#ffd32a', CAD:'#ff6b35', AUD:'#00c896',
+  NZD:'#34d399', CHF:'#ff4757',
+};
+
+async function forceRefreshEcoData() {
+  ecoFetchedAt = 0;
+  ecoData = null;
+  await fetchEcoData(true);
+}
+
+async function fetchEcoData(force = false) {
+  const btn = document.getElementById('ecdRefreshBtn');
+  if (btn) btn.classList.add('spinning');
+  document.getElementById('ecdGrid').innerHTML =
+    '<div class="ecd-empty" style="grid-column:1/-1">Memuat data dari FRED...</div>';
+  try {
+    const url = '/api/economic-data' + (force ? '?force=1' : '');
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (json.error && !json.data) throw new Error(json.error);
+    ecoData = json;
+    ecoFetchedAt = Date.now();
+    renderEcoData();
+  } catch(e) {
+    console.warn('EcoData fetch failed:', e.message);
+    document.getElementById('ecdGrid').innerHTML =
+      `<div class="ecd-empty" style="grid-column:1/-1">Gagal memuat: ${e.message}<br><small>Pastikan FRED_API_KEY sudah di-set di Vercel env vars.</small></div>`;
+  } finally {
+    if (btn) btn.classList.remove('spinning');
+  }
+}
+
+function renderEcoData() {
+  const grid = document.getElementById('ecdGrid');
+  const updEl = document.getElementById('ecdUpdatedAt');
+
+  if (!ecoData || !ecoData.data || Object.keys(ecoData.data).length === 0) {
+    grid.innerHTML = '<div class="ecd-empty" style="grid-column:1/-1">Data belum tersedia. Pastikan FRED_API_KEY sudah dikonfigurasi.</div>';
+    return;
+  }
+
+  if (ecoData.fetched_at && updEl) {
+    const d = new Date(ecoData.fetched_at);
+    const wib = new Date(d.getTime() + 7*3600000);
+    const ts = `${String(wib.getUTCDate()).padStart(2,'0')}/${String(wib.getUTCMonth()+1).padStart(2,'0')} ${String(wib.getUTCHours()).padStart(2,'0')}:${String(wib.getUTCMinutes()).padStart(2,'0')} WIB`;
+    updEl.textContent = `FRED · diperbarui ${ts}${ecoData.stale ? ' · ⚠ data lama' : ''}`;
+  }
+
+  // CPI: up = bad (inflation) → red; down = good → green
+  // Unemployment: up = bad → red; down = good → green
+  // GDP / NFP: up = good → green; down = bad → red
+  function colorDir(metric, delta) {
+    if (delta === 0) return 'ecd-flat';
+    const upIsGood = (metric === 'gdp_growth' || metric === 'nfp');
+    const upIsBad  = (metric === 'cpi' || metric === 'unemployment');
+    if (upIsGood) return delta > 0 ? 'ecd-up' : 'ecd-down';
+    if (upIsBad)  return delta > 0 ? 'ecd-down' : 'ecd-up';
+    return 'ecd-flat';
+  }
+
+  function fmtVal(metric, v) {
+    if (v === null || v === undefined) return '—';
+    if (metric === 'nfp') return (v > 0 ? '+' : '') + v.toLocaleString() + 'K';
+    if (metric === 'cpi') return v.toFixed(1);
+    return v.toFixed(1) + (metric === 'unemployment' || metric === 'gdp_growth' ? '%' : '');
+  }
+
+  function fmtChg(metric, delta) {
+    if (delta === null || isNaN(delta)) return '';
+    const abs = Math.abs(delta);
+    let str;
+    if (metric === 'nfp') str = (delta > 0 ? '+' : '') + Math.round(delta).toLocaleString() + 'K';
+    else str = (delta > 0 ? '+' : '') + abs.toFixed(2) + (metric === 'unemployment' || metric === 'gdp_growth' ? 'pp' : '');
+    return str;
+  }
+
+  const METRIC_LABELS = { cpi: 'CPI', gdp_growth: 'GDP Growth', unemployment: 'Unemployment', nfp: 'NFP' };
+
+  grid.innerHTML = CUR_ORDER_ECD.map(cur => {
+    const d = ecoData.data[cur];
+    if (!d) return '';
+    const color = CUR_COLORS_ECD[cur];
+    const metrics = ['cpi','gdp_growth','unemployment', ...(cur === 'USD' ? ['nfp'] : [])];
+
+    const metricRows = metrics.map(m => {
+      const entry = d[m];
+      if (!entry) return `<div class="ecd-metric"><span class="ecd-metric-label">${METRIC_LABELS[m]}</span><div class="ecd-metric-right"><span class="ecd-val ecd-flat">—</span></div></div>`;
+      const delta = entry.value - entry.previous;
+      const cls   = colorDir(m, delta);
+      const chgStr = fmtChg(m, delta);
+      const icon  = delta > 0 ? '▲' : delta < 0 ? '▼' : '→';
+      return `<div class="ecd-metric">
+        <span class="ecd-metric-label">${METRIC_LABELS[m]}</span>
+        <div class="ecd-metric-right">
+          <span class="ecd-val">${fmtVal(m, entry.value)}</span>
+          <span class="ecd-chg ${cls}">${icon} ${chgStr}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    const latestDate = metrics.map(m => d[m]?.date).filter(Boolean).sort().pop() || '';
+
+    return `<div class="ecd-card ecd-${cur}">
+      <div class="ecd-cur" style="color:${color}">${cur}</div>
+      <div class="ecd-cb">${CB_NAMES[cur] || ''}</div>
+      ${metricRows}
+      ${latestDate ? `<div class="ecd-date">Data per ${latestDate}</div>` : ''}
+    </div>`;
+  }).filter(Boolean).join('');
 }
 
 // Calendar filter state
