@@ -94,24 +94,51 @@ body {
 .stat-val { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; }
 .stat-label { font-size:8px; color:var(--muted); letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
 
-/* FILTER TABS */
-.filter-wrap {
+/* NAV VIEWS (primary) */
+.nav-views {
   flex-shrink: 0;
-  display:flex; overflow-x:auto; scrollbar-width:none;
-  border-bottom:1px solid var(--border);
-  background:var(--bg);
-  padding:0 8px;
+  display: flex; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 8px;
 }
-.filter-wrap::-webkit-scrollbar { display:none; }
+.nav-views::-webkit-scrollbar { display: none; }
+.nvtab {
+  flex-shrink: 0; padding: 11px 14px;
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+  color: var(--muted); background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer; white-space: nowrap; transition: all .15s; text-transform: uppercase;
+}
+.nvtab:hover { color: var(--text-mid); }
+.nvtab[data-view="feed"].active      { color: var(--text);   border-bottom-color: var(--accent); }
+.nvtab[data-view="ringkasan"]        { color: var(--accent); }
+.nvtab[data-view="ringkasan"].active { color: var(--accent); border-bottom-color: var(--accent); }
+.nvtab[data-view="cal"]              { color: var(--green);  }
+.nvtab[data-view="cal"].active       { color: var(--green);  border-bottom-color: var(--green); }
+.nvtab[data-view="cot"]              { color: var(--purple); }
+.nvtab[data-view="cot"].active       { color: var(--purple); border-bottom-color: var(--purple); }
+.nvtab[data-view="checklist"]        { color: var(--yellow); }
+.nvtab[data-view="checklist"].active { color: var(--yellow); border-bottom-color: var(--yellow); }
+
+/* NAV FILTERS (secondary — only shown on NEWS view) */
+.nav-filters {
+  flex-shrink: 0;
+  display: flex; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  padding: 0 6px;
+}
+.nav-filters::-webkit-scrollbar { display: none; }
 .ftab {
-  flex-shrink:0; padding:10px 12px;
-  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.5px;
-  color:var(--muted); background:transparent; border:none;
-  border-bottom:2px solid transparent; cursor:pointer;
-  white-space:nowrap; transition:all .15s; text-transform:uppercase;
+  flex-shrink: 0; padding: 7px 10px;
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .5px;
+  color: var(--muted); background: transparent; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  white-space: nowrap; transition: all .15s; text-transform: uppercase;
 }
-.ftab.active { color:var(--text); border-bottom-color:var(--accent); }
-.ftab:active { opacity:.7; }
+.ftab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.ftab:active { opacity: .7; }
 
 /* TOOLBAR */
 .toolbar {
@@ -230,12 +257,7 @@ body {
 .toast-title { font-family:'Syne',sans-serif; font-size:12px; color:var(--accent); margin-bottom:4px; }
 .toast-body { font-size:11px; color:var(--muted); line-height:1.4; }
 
-/* ── RINGKASAN TAB ── */
-.ftab[data-view="ringkasan"] { color: var(--accent); }
-.ftab[data-view="ringkasan"].active {
-  color: var(--text); background: var(--accent);
-  border-radius: 4px 4px 0 0; border-bottom-color: var(--accent);
-}
+/* ── RINGKASAN PANEL ──*/
 
 /* RINGKASAN PANEL */
 .ringkasan-inner {
@@ -298,12 +320,7 @@ body {
   margin-top: 6px; padding-bottom: 4px;
 }
 
-/* ── COT TAB ── */
-.ftab[data-view="cot"] { color: var(--purple); }
-.ftab[data-view="cot"].active {
-  color: var(--bg); background: var(--purple);
-  border-radius: 4px 4px 0 0; border-bottom-color: var(--purple);
-}
+/* ── COT POSITIONING ──*/
 
 /* ── COT POSITIONING ── */
 .cot-panel-inner {
@@ -384,12 +401,7 @@ body {
   display: flex; align-items: center;
 }
 
-/* ── CALENDAR TAB ── */
-.ftab[data-view="cal"] { color: var(--green); }
-.ftab[data-view="cal"].active {
-  color: var(--bg); background: var(--green);
-  border-radius: 4px 4px 0 0; border-bottom-color: var(--green);
-}
+/* ── CALENDAR TAB ──*/
 
 /* CAL TOOLBAR */
 .cal-toolbar {
@@ -616,8 +628,9 @@ body {
   .header { padding: 14px 24px; }
   .stats-bar .stat { padding: 10px 20px; }
   .stat-val { font-size: 20px; }
-  .filter-wrap { padding: 0 16px; }
-  .ftab { padding: 12px 16px; font-size: 11px; }
+  .nav-views, .nav-filters { padding: 0 16px; }
+  .nvtab { padding: 13px 18px; font-size: 11px; }
+  .ftab { padding: 8px 14px; font-size: 10px; }
   .toolbar { padding: 10px 24px; }
   .feed-scroll { padding: 12px 20px 20px; }
   .ringkasan-inner { padding: 20px 24px 28px; max-width: 860px; margin: 0 auto; }
@@ -648,21 +661,28 @@ body {
   .cb-rate { font-size: 14px; }
   .stats-bar .stat { padding: 7px 10px; }
   .stat-val { font-size: 15px; }
-  .ftab { padding: 9px 10px; font-size: 9px; }
+  .nvtab { padding: 10px 11px; font-size: 9px; }
+  .ftab  { padding: 6px 9px;  font-size: 8px; }
   .cot-row { grid-template-columns: 34px 1fr auto auto; gap: 6px; }
   .cot-net { min-width: 48px; font-size: 10px; }
   .cot-change { min-width: 40px; font-size: 8px; }
   .cot-cur { font-size: 10px; }
 }
 
-/* ── CHECKLIST TAB ── */
-.ftab[data-view="checklist"] { color: var(--yellow); }
-.ftab[data-view="checklist"].active {
-  color: var(--bg); background: var(--yellow);
-  border-radius: 4px 4px 0 0; border-bottom-color: var(--yellow);
-}
-
 /* ── CHECKLIST PANEL ── */
+.ck-mobile-bar {
+  display: none; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 0 12px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 600px) { .ck-mobile-bar { display: flex; } }
+.ck-mobile-verdict { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
+.ck-mobile-verdict.pass { color: var(--green); }
+.ck-mobile-verdict.fail { color: var(--accent); }
+.ck-mobile-verdict.pending { color: var(--muted); }
+.ck-mobile-prog { display: flex; align-items: center; gap: 8px; flex: 1; }
+.ck-mobile-pb-bg { flex: 1; height: 2px; background: var(--border); }
+.ck-mobile-pb { height: 100%; background: var(--green); transition: width .4s; }
 .ck-wrap { flex: 1; display: flex; overflow: hidden; }
 .ck-sections { flex: 1; overflow-y: auto; padding: 10px 12px 20px; scrollbar-width: none; }
 .ck-sections::-webkit-scrollbar { display: none; }
@@ -795,9 +815,17 @@ body {
   <div class="stat"><div class="stat-val" id="sGeo" style="color:#fb923c">—</div><div class="stat-label">Geopolit.</div></div>
 </div>
 
-<!-- FILTER TABS -->
-<div class="filter-wrap" id="filterWrap">
-  <button class="ftab" data-view="ringkasan" id="ringkasanTab">RINGKASAN</button>
+<!-- PRIMARY NAV -->
+<div class="nav-views" id="navViews">
+  <button class="nvtab active" data-view="feed" id="feedNavTab">NEWS</button>
+  <button class="nvtab" data-view="ringkasan" id="ringkasanTab">RINGKASAN</button>
+  <button class="nvtab" data-view="cal" id="calTab">CAL</button>
+  <button class="nvtab" data-view="cot" id="cotTab">COT</button>
+  <button class="nvtab" data-view="checklist" id="checklistTab">CHECKLIST</button>
+</div>
+
+<!-- CATEGORY FILTERS -->
+<div class="nav-filters" id="navFilters">
   <button class="ftab active" data-cat="all">All</button>
   <button class="ftab" data-cat="market-moving">Mkt Moving</button>
   <button class="ftab" data-cat="forex">Forex</button>
@@ -805,13 +833,10 @@ body {
   <button class="ftab" data-cat="econ-data">Econ Data</button>
   <button class="ftab" data-cat="energy">Energy</button>
   <button class="ftab" data-cat="geopolitical">Geopolitical</button>
-  <button class="ftab" data-view="cal" id="calTab">CAL</button>
-  <button class="ftab" data-view="cot" id="cotTab">COT</button>
-  <button class="ftab" data-view="checklist" id="checklistTab">CHECKLIST</button>
 </div>
 
 <!-- TOOLBAR -->
-<div class="toolbar">
+<div class="toolbar" id="toolbar">
   <span class="last-update" id="lastUpdate">Never fetched</span>
   <div class="right-tools">
     <span class="auto-label">AUTO</span>
@@ -1340,23 +1365,34 @@ function escHtml(s) {
 }
 
 // ── VIEW SWITCHING ────────────────────────────────────────
-document.querySelectorAll('.ftab').forEach(btn => {
+function setFeedUI(show) {
+  document.getElementById('toolbar').style.display    = show ? 'flex' : 'none';
+  document.getElementById('navFilters').style.display = show ? 'flex' : 'none';
+}
+
+function hideAllPanels() {
+  ['feedScroll','ringkasanPanel','calPanel','cotPanel','checklistPanel']
+    .forEach(id => { document.getElementById(id).style.display = 'none'; });
+}
+
+document.querySelectorAll('#navViews .nvtab').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#navViews .nvtab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-
-    document.getElementById('feedScroll').style.display     = 'none';
-    document.getElementById('ringkasanPanel').style.display = 'none';
-    document.getElementById('calPanel').style.display       = 'none';
-    document.getElementById('cotPanel').style.display       = 'none';
-    document.getElementById('checklistPanel').style.display = 'none';
-
+    hideAllPanels();
     const view = btn.dataset.view;
-    if (view === 'ringkasan') {
+    if (view === 'feed') {
+      setFeedUI(true);
+      activeView = 'feed';
+      document.getElementById('feedScroll').style.display = 'block';
+      renderFeed();
+    } else if (view === 'ringkasan') {
+      setFeedUI(false);
       activeView = 'ringkasan';
       document.getElementById('ringkasanPanel').style.display = 'block';
       renderRingkasan();
     } else if (view === 'cal') {
+      setFeedUI(false);
       activeView = 'cal';
       document.getElementById('calPanel').style.display = 'block';
       const now = Date.now();
@@ -1365,21 +1401,27 @@ document.querySelectorAll('.ftab').forEach(btn => {
       if (!cbData || (now - cbFetchedAt) > 5 * 60 * 1000) fetchCBStatus();
       else renderCBTracker();
     } else if (view === 'cot') {
+      setFeedUI(false);
       activeView = 'cot';
       document.getElementById('cotPanel').style.display = 'block';
       const now = Date.now();
       if (!cotData || (now - cotFetchedAt) > 30 * 60 * 1000) fetchCOT();
       else renderCOT();
     } else if (view === 'checklist') {
+      setFeedUI(false);
       activeView = 'checklist';
       document.getElementById('checklistPanel').style.display = 'flex';
       initChecklist();
-    } else {
-      activeView = 'feed';
-      document.getElementById('feedScroll').style.display = 'block';
-      activeFilter = btn.dataset.cat;
-      renderFeed();
     }
+  });
+});
+
+document.querySelectorAll('#navFilters .ftab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#navFilters .ftab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.cat;
+    renderFeed();
   });
 });
 
@@ -1892,6 +1934,18 @@ function ckGetVerdict() {
 function ckBuildUI() {
   const container = document.getElementById('ckSectionsContainer');
   container.innerHTML = '';
+
+  // Mobile verdict strip (hidden on desktop via CSS)
+  const mbar = document.createElement('div');
+  mbar.className = 'ck-mobile-bar';
+  mbar.innerHTML = `
+    <span class="ck-mobile-verdict pending" id="ckMobileVerdict">—</span>
+    <div class="ck-mobile-prog">
+      <div class="ck-mobile-pb-bg"><div class="ck-mobile-pb" id="ckMobilePb" style="width:0%"></div></div>
+      <span style="font-size:9px;color:var(--muted);white-space:nowrap" id="ckMobileCt">0/0</span>
+    </div>`;
+  container.appendChild(mbar);
+
   for (const sec of CK_SECTIONS) {
     const div = document.createElement('div');
     div.className = 'ck-sec';
@@ -1981,18 +2035,21 @@ function ckRender() {
   const pct = total === 0 ? 0 : Math.round(totalChecked / total * 100);
   if (pb) pb.style.width = pct + '%';
   if (ct) ct.textContent = `${totalChecked}/${total}`;
+  const verdictLabel = gatePassed ? 'ENTRY' : (totalChecked === 0 ? '—' : 'NO TRADE');
+  const verdictCls   = gatePassed ? 'pass'  : (totalChecked === 0 ? 'pending' : 'fail');
+  const verdictSub   = gatePassed ? 'Semua gate terpenuhi' : (totalChecked === 0 ? 'Lengkapi checklist' : 'Ada gate yang belum terpenuhi');
+
   if (vv && vs) {
-    if (gatePassed) {
-      vv.textContent = 'ENTRY'; vv.className = 'ck-verdict-val pass';
-      vs.textContent = 'Semua gate terpenuhi';
-    } else if (totalChecked === 0) {
-      vv.textContent = '—'; vv.className = 'ck-verdict-val pending';
-      vs.textContent = 'Lengkapi checklist';
-    } else {
-      vv.textContent = 'NO TRADE'; vv.className = 'ck-verdict-val fail';
-      vs.textContent = 'Ada gate yang belum terpenuhi';
-    }
+    vv.textContent = verdictLabel; vv.className = 'ck-verdict-val ' + verdictCls;
+    vs.textContent = verdictSub;
   }
+
+  const mv = document.getElementById('ckMobileVerdict');
+  const mp = document.getElementById('ckMobilePb');
+  const mc = document.getElementById('ckMobileCt');
+  if (mv) { mv.textContent = verdictLabel; mv.className = 'ck-mobile-verdict ' + verdictCls; }
+  if (mp) mp.style.width = pct + '%';
+  if (mc) mc.textContent = `${totalChecked}/${total}`;
 }
 
 function ckResetAll() {
