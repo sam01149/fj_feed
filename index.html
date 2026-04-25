@@ -785,6 +785,39 @@ body {
 }
 .ck-reset:hover { border-color: var(--muted); color: var(--text); }
 @media (max-width: 600px) { .ck-sidebar { display: none; } }
+
+/* ── REGIME BANNER ── */
+.regime-banner {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 26px;
+  transition: background 0.25s;
+}
+.regime-banner.risk-on  { background: #0f2a14; color: #4caf50; }
+.regime-banner.neutral  { background: #141413; color: var(--muted); }
+.regime-banner.risk-off { background: #2a0f0f; color: #e53935; }
+.regime-banner.unavail  { background: #141413; color: var(--muted); }
+.regime-row { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow: hidden; }
+.regime-main { white-space: nowrap; }
+.regime-meta { font-size: 9px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.regime-detail {
+  margin-top: 5px; padding-top: 5px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  font-size: 9px; line-height: 1.7;
+  font-weight: 400; letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+.regime-detail.hidden { display: none; }
+.regime-trigger { opacity: 0.5; }
+.regime-trigger.active { opacity: 1; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -803,6 +836,15 @@ body {
 <div class="install-banner" id="installBanner">
   <p>Install Daun Merah ke homescreen untuk notifikasi background</p>
   <button class="install-btn" id="installBtn">INSTALL</button>
+</div>
+
+<!-- REGIME BANNER -->
+<div class="regime-banner neutral" id="regimeBanner" onclick="toggleRegimeDetail()">
+  <div class="regime-row">
+    <span class="regime-main" id="regimeLabel">REGIME: —</span>
+    <span class="regime-meta" id="regimeMeta"></span>
+  </div>
+  <div class="regime-detail hidden" id="regimeDetail"></div>
 </div>
 
 <!-- STATS -->
@@ -1752,6 +1794,79 @@ function formatCalDate(dateStr) {
   return `${days[d.getUTCDay()]}, ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
 }
 
+// ── REGIME BANNER ────────────────────────────────────────
+let regimeDetailOpen = false
+
+function toggleRegimeDetail() {
+  regimeDetailOpen = !regimeDetailOpen
+  const el = document.getElementById('regimeDetail')
+  el.classList.toggle('hidden', !regimeDetailOpen)
+}
+
+function renderRegimeBanner(data) {
+  const banner = document.getElementById('regimeBanner')
+  const label  = document.getElementById('regimeLabel')
+  const meta   = document.getElementById('regimeMeta')
+  const detail = document.getElementById('regimeDetail')
+
+  if (!data || data.error || data.regime === 'unavailable') {
+    banner.className = 'regime-banner unavail'
+    label.textContent = 'REGIME: DATA TIDAK TERSEDIA'
+    meta.textContent = ''
+    detail.innerHTML = ''
+    return
+  }
+
+  const LABELS = { risk_on: 'RISK-ON', neutral: 'NEUTRAL', risk_off: 'RISK-OFF' }
+  const CLASSES = { risk_on: 'risk-on', neutral: 'neutral', risk_off: 'risk-off' }
+
+  const arrow = v => v == null ? '' : v > 0 ? ' ▲' : v < 0 ? ' ▼' : ''
+
+  const parts = []
+  if (data.vix   != null) parts.push(`VIX ${data.vix.toFixed(1)}${arrow(data.vix - 20)}`)
+  if (data.move  != null) parts.push(`MOVE ${Math.round(data.move)}${arrow(data.move - 110)}`)
+  if (data.hy_spread != null) parts.push(`HY ${data.hy_spread.toFixed(2)}%${arrow(data.hy_change_2d)}`)
+
+  const updTime = data.data_date
+    ? new Date(data.data_date).toLocaleDateString('id-ID', { day:'numeric', month:'short' })
+    : '—'
+
+  banner.className = `regime-banner ${CLASSES[data.regime] || 'neutral'}`
+  label.textContent = `REGIME: ${LABELS[data.regime] || data.regime.toUpperCase()}`
+  meta.textContent  = parts.length ? `· ${parts.join(' · ')} · Data ${updTime}` : ''
+
+  if (data.stale) meta.textContent += ' (stale)'
+
+  // Breakdown detail (shown on tap)
+  const comp = data.components || {}
+  const rows = []
+  if (data.vix != null) {
+    const cls = comp.vix_trigger ? 'regime-trigger active' : 'regime-trigger'
+    rows.push(`<div class="${cls}">VIX ${data.vix.toFixed(1)} ${comp.vix_trigger ? '> 25 → Risk-Off trigger' : '≤ 25 → OK'}</div>`)
+  }
+  if (data.move != null) {
+    const cls = comp.move_trigger ? 'regime-trigger active' : 'regime-trigger'
+    rows.push(`<div class="${cls}">MOVE ${Math.round(data.move)} ${comp.move_trigger ? '> 130 → Risk-Off trigger' : '≤ 130 → OK'}</div>`)
+  }
+  if (data.hy_spread != null) {
+    const cls = comp.hy_trigger ? 'regime-trigger active' : 'regime-trigger'
+    const chg = data.hy_change_2d != null ? ` (Δ2d ${data.hy_change_2d > 0 ? '+' : ''}${data.hy_change_2d.toFixed(2)}%)` : ''
+    rows.push(`<div class="${cls}">HY OAS ${data.hy_spread.toFixed(2)}%${chg} ${comp.hy_trigger ? '> +0.15% widening → Risk-Off trigger' : '→ OK'}</div>`)
+  }
+  rows.push(`<div style="opacity:.45;margin-top:3px">Risk-On = VIX<15 + MOVE<90 + HY tidak melebar · Risk-Off = salah satu threshold terlampaui</div>`)
+  detail.innerHTML = rows.join('')
+}
+
+function fetchRegime() {
+  fetch('/api/risk-regime')
+    .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+    .then(data => renderRegimeBanner(data))
+    .catch(e => {
+      console.warn('risk-regime fetch failed:', e)
+      // Banner stays in last rendered state; don't show error to avoid noise
+    })
+}
+
 // ── INIT ─────────────────────────────────────────────────
 window.addEventListener('load', () => {
   if (Notification.permission === 'granted') {
@@ -1759,6 +1874,8 @@ window.addEventListener('load', () => {
     document.getElementById('notifBtn').classList.add('enabled');
   }
   setTimeout(fetchFeed, 400);
+  setTimeout(fetchRegime, 800);
+  setInterval(fetchRegime, 15 * 60 * 1000);
 });
 
 // ── CHECKLIST ─────────────────────────────────────────────
