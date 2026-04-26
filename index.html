@@ -124,8 +124,10 @@ body {
 .nvtab[data-view="checklist"].active { color: var(--yellow); border-bottom-color: var(--yellow); }
 .nvtab[data-view="sizing"]           { color: var(--accent); }
 .nvtab[data-view="sizing"].active    { color: var(--accent); border-bottom-color: var(--accent); }
-.nvtab[data-view="jurnal"]           { color: var(--pink); }
-.nvtab[data-view="jurnal"].active    { color: var(--pink);   border-bottom-color: var(--pink); }
+.nvtab[data-view="jurnal"]              { color: var(--pink); }
+.nvtab[data-view="jurnal"].active      { color: var(--pink);   border-bottom-color: var(--pink); }
+.nvtab[data-view="petunjuk"]           { color: #60a5fa; }
+.nvtab[data-view="petunjuk"].active    { color: #60a5fa; border-bottom-color: #60a5fa; }
 
 /* SIZING FORM */
 .sizing-form { display:flex; flex-direction:column; gap:10px; }
@@ -893,6 +895,54 @@ body {
 .regime-trigger { opacity: 0.5; }
 .regime-trigger.active { opacity: 1; font-weight: 700; }
 
+/* ── PETUNJUK PANEL ── */
+.pt-wrap { padding: 16px 14px 32px; max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.pt-hero { text-align: center; padding: 20px 0 8px; }
+.pt-hero-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; color: #60a5fa; letter-spacing: .04em; }
+.pt-hero-sub { font-size: 10px; color: var(--muted); margin-top: 5px; letter-spacing: .08em; text-transform: uppercase; }
+.pt-section { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.pt-section-hdr {
+  padding: 10px 14px; background: var(--surface);
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.pt-section-hdr .pt-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; flex-shrink: 0;
+}
+.pt-section-body { padding: 0; }
+.pt-row {
+  display: grid; grid-template-columns: 28px 1fr 1fr;
+  gap: 0; border-bottom: 1px solid var(--border); padding: 10px 14px;
+  align-items: start;
+}
+.pt-row:last-child { border-bottom: none; }
+.pt-step-num { font-size: 9px; color: var(--muted); padding-top: 1px; font-weight: 700; }
+.pt-step-action { font-size: 11px; color: var(--text); line-height: 1.5; }
+.pt-step-action strong { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: .04em; display: block; margin-bottom: 2px; }
+.pt-step-why { font-size: 9px; color: var(--muted); line-height: 1.6; padding-left: 6px; border-left: 2px solid var(--border); }
+.pt-flow { padding: 14px; display: flex; flex-direction: column; gap: 0; }
+.pt-flow-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.pt-flow-item:not(:last-child) { border-bottom: 1px dashed var(--border); }
+.pt-flow-tag {
+  font-family: 'Syne', sans-serif; font-size: 8px; font-weight: 700; letter-spacing: .08em;
+  padding: 3px 8px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; min-width: 72px; text-align: center;
+}
+.pt-flow-desc { font-size: 10px; color: var(--text-mid); line-height: 1.5; }
+.pt-flow-arrow { color: var(--border); font-size: 10px; padding: 2px 0; }
+.pt-rules { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pt-rule { display: flex; gap: 10px; align-items: flex-start; }
+.pt-rule-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.pt-rule-text { font-size: 10px; line-height: 1.6; color: var(--text-mid); }
+.pt-rule-text strong { color: var(--text); font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; display: block; margin-bottom: 1px; }
+.pt-note { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2); border-radius: 6px; padding: 12px 14px; font-size: 10px; color: #93c5fd; line-height: 1.7; }
+@media (max-width: 480px) {
+  .pt-row { grid-template-columns: 22px 1fr; }
+  .pt-step-why { display: none; }
+  .pt-hero-title { font-size: 15px; }
+}
+
 /* ── MOBILE BOTTOM NAV ── */
 .bot-nav { display: none; }
 
@@ -981,6 +1031,7 @@ body {
   <button class="nvtab" data-view="checklist" id="checklistTab">CHECKLIST</button>
   <button class="nvtab" data-view="sizing" id="sizingTab">SIZING</button>
   <button class="nvtab" data-view="jurnal" id="jurnalTab">JURNAL</button>
+  <button class="nvtab" data-view="petunjuk" id="petunjukTab">PETUNJUK</button>
 </div>
 
 <!-- CATEGORY FILTERS -->
@@ -1186,6 +1237,178 @@ body {
       </div>
     </div>
   </div>
+</div>
+
+<!-- PETUNJUK PANEL -->
+<div class="feed-scroll" id="petunjukPanel" style="display:none">
+<div class="pt-wrap">
+
+  <div class="pt-hero">
+    <div class="pt-hero-title">Panduan End-to-End</div>
+    <div class="pt-hero-sub">SOP penggunaan Daun Merah untuk sesi trading harian</div>
+  </div>
+
+  <!-- ALUR KEPUTUSAN -->
+  <div class="pt-section">
+    <div class="pt-section-hdr" style="color:#60a5fa">
+      <span>⚡</span> Alur Keputusan (Quick Reference)
+    </div>
+    <div class="pt-flow">
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(96,165,250,0.12);color:#60a5fa">COT</div>
+        <div class="pt-flow-desc">Bias minggu ini — institusi net long atau short di pair kamu?</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(192,57,43,0.12);color:#e57373">RINGKASAN</div>
+        <div class="pt-flow-desc">Driver harian + bias sesi + risiko spike XAU/USD</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(39,174,96,0.12);color:#4caf50">CAL</div>
+        <div class="pt-flow-desc">Jam berapa high-impact news? Tandai sebagai no-trade zone</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(192,57,43,0.12);color:#e57373">NEWS</div>
+        <div class="pt-flow-desc">Monitor real-time — tangkap headline sebelum chart bergerak</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(230,126,34,0.12);color:#f39c12">CHECKLIST</div>
+        <div class="pt-flow-desc">Semua kondisi hijau? Jika tidak — tidak ada entry</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(192,57,43,0.12);color:#e57373">SIZING</div>
+        <div class="pt-flow-desc">Hitung lot dari equity, stop pips, dan % risk kamu</div>
+      </div>
+      <div class="pt-flow-arrow" style="padding-left:36px">↓</div>
+      <div class="pt-flow-item">
+        <div class="pt-flow-tag" style="background:rgba(244,114,182,0.12);color:#f472b6">JURNAL</div>
+        <div class="pt-flow-desc">Catat setiap trade — pair, arah, alasan, hasil</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 1: PRE-SESSION -->
+  <div class="pt-section">
+    <div class="pt-section-hdr" style="color:#60a5fa">
+      <span class="pt-num" style="background:rgba(96,165,250,0.15);color:#60a5fa">1</span>
+      Pre-Session — Sebelum Market Buka
+    </div>
+    <div class="pt-section-body">
+      <div class="pt-row">
+        <div class="pt-step-num">1.1</div>
+        <div class="pt-step-action"><strong>Cek Tab COT</strong>Lihat posisi institusi (Leveraged Money & Asset Manager) untuk pair yang akan ditrade. Perhatikan kolom NET dan perubahan minggu ini.</div>
+        <div class="pt-step-why">COT dirilis tiap Jumat, berlaku untuk minggu depan. Jika institusi net short tapi kamu mau buy — kamu melawan arus. Pertimbangkan ulang atau kurangi size.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">1.2</div>
+        <div class="pt-step-action"><strong>Generate Ringkasan</strong>Buka tab RINGKASAN → tap "Generate". Baca hasil AI dari atas ke bawah: driver pasar, pairs yang bergerak, bias sesi, dan paragraf XAUUSD di bagian bawah.</div>
+        <div class="pt-step-why">Ringkasan mengagregasi 80+ headline terakhir + event kalender. Lebih cepat dari baca satu-satu. Hasilnya hanya valid ~4 jam — generate ulang setelah itu.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">1.3</div>
+        <div class="pt-step-action"><strong>Baca Regime Banner</strong>Lihat banner di bawah header: RISK-ON, NEUTRAL, atau RISK-OFF. Ini mempengaruhi pair mana yang lebih relevan hari ini.</div>
+        <div class="pt-step-why">Risk-Off → JPY, CHF, Gold cenderung kuat. Risk-On → AUD, NZD, pasangan risiko tinggi lebih aktif. Sesuaikan fokus pair.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">1.4</div>
+        <div class="pt-step-action"><strong>Cek Tab CAL</strong>Lihat event High-impact hari ini dan jam rilisnya (sudah dikonversi ke WIB). Buat "no-trade window" 15 menit sebelum dan sesudah rilis.</div>
+        <div class="pt-step-why">Spread melebar dan pergerakan tidak terprediksi saat news rilis. Trading di dalam window ini adalah gambling, bukan edge.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2: LIVE SESSION -->
+  <div class="pt-section">
+    <div class="pt-section-hdr" style="color:#4caf50">
+      <span class="pt-num" style="background:rgba(39,174,96,0.15);color:#4caf50">2</span>
+      Live Session — Saat Trading Aktif
+    </div>
+    <div class="pt-section-body">
+      <div class="pt-row">
+        <div class="pt-step-num">2.1</div>
+        <div class="pt-step-action"><strong>Aktifkan AUTO di tab NEWS</strong>Toggle AUTO ON → feed refresh otomatis tiap 50 detik. Aktifkan juga notifikasi push agar headline market-moving masuk ke HP.</div>
+        <div class="pt-step-why">Berita bergerak sebelum chart bergerak. Notifikasi memberikan ~5-15 detik head start sebelum retail trader lain bereaksi.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">2.2</div>
+        <div class="pt-step-action"><strong>Filter NEWS per kategori</strong>Gunakan tombol filter: Forex, Macro, Energy, Geopolit. Fokus pada kategori yang relevan dengan pair yang sedang ditrade.</div>
+        <div class="pt-step-why">100+ berita per hari — filter mencegah information overload dan menjaga fokus.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">2.3</div>
+        <div class="pt-step-action"><strong>Setup ditemukan? Jalankan CHECKLIST</strong>Buka CHECKLIST, pilih playbook (SMC/ICT atau Macro Momentum), pilih pair. Centang setiap kondisi secara jujur.</div>
+        <div class="pt-step-why">Checklist menghilangkan bias konfirmasi. Banyak loss terjadi karena trader skip validasi saat emosi tinggi. Checklist adalah rem.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">2.4</div>
+        <div class="pt-step-action"><strong>CHECKLIST pass → hitung SIZING</strong>Input: total equity akun, jarak stop loss (pips), persentase risk yang mau kamu ambil (rekomendasi: 1–2%). Output: lot size yang tepat.</div>
+        <div class="pt-step-why">Sizing yang salah adalah penyebab utama account blow. 1 trade dengan lot 5x terlalu besar bisa menghapus 20 trade profit sebelumnya.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 3: POST-TRADE -->
+  <div class="pt-section">
+    <div class="pt-section-hdr" style="color:#f472b6">
+      <span class="pt-num" style="background:rgba(244,114,182,0.15);color:#f472b6">3</span>
+      Post-Trade — Setelah Posisi Ditutup
+    </div>
+    <div class="pt-section-body">
+      <div class="pt-row">
+        <div class="pt-step-num">3.1</div>
+        <div class="pt-step-action"><strong>Catat ke JURNAL</strong>Buka tab JURNAL → "+ BARU". Isi pair, direction, lot, entry/exit price, P&L, dan alasan masuk. Jika trade berasal dari RINGKASAN thesis, gunakan tombol "Gunakan untuk mulai jurnal →".</div>
+        <div class="pt-step-why">Jurnal adalah satu-satunya cara tahu apakah strategy kamu profitable secara sistematis, bukan hanya beruntung.</div>
+      </div>
+      <div class="pt-row">
+        <div class="pt-step-num">3.2</div>
+        <div class="pt-step-action"><strong>Review mingguan</strong>Tiap akhir minggu, buka JURNAL → tab DAFTAR. Review trade mana yang profit/loss dan apakah alasannya valid. Bandingkan dengan COT minggu itu.</div>
+        <div class="pt-step-why">Trader yang tidak review journal hanya mengulangi kesalahan yang sama. Pattern error biasanya terlihat setelah 10-20 trade terjurnal.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATURAN KUNCI -->
+  <div class="pt-section">
+    <div class="pt-section-hdr" style="color:#f39c12">
+      <span>⚠</span> Aturan Kunci
+    </div>
+    <div class="pt-rules">
+      <div class="pt-rule">
+        <div class="pt-rule-icon">🚫</div>
+        <div class="pt-rule-text"><strong>Jangan skip CHECKLIST</strong>Kalau setup "terasa bagus tapi checklist tidak pass" — itu bukan edge, itu FOMO. Tidak ada entry.</div>
+      </div>
+      <div class="pt-rule">
+        <div class="pt-rule-icon">🚫</div>
+        <div class="pt-rule-text"><strong>Jangan trade di no-trade window</strong>15 menit sebelum dan sesudah high-impact news = dilarang entry. Cek CAL setiap pagi.</div>
+      </div>
+      <div class="pt-rule">
+        <div class="pt-rule-icon">🚫</div>
+        <div class="pt-rule-text"><strong>Jangan abaikan COT divergence</strong>Jika COT institusi berlawanan dengan arah trade kamu, kurangi size atau skip. Jangan fight the flow.</div>
+      </div>
+      <div class="pt-rule">
+        <div class="pt-rule-icon">✅</div>
+        <div class="pt-rule-text"><strong>Generate Ringkasan tiap pagi</strong>Jangan trade tanpa konteks hari ini. Ringkasan butuh &lt;30 detik untuk dibaca dan bisa mencegah entry yang salah arah.</div>
+      </div>
+      <div class="pt-rule">
+        <div class="pt-rule-icon">✅</div>
+        <div class="pt-rule-text"><strong>Risk max 2% per trade</strong>Input ke SIZING setiap kali, jangan hafal lot "kira-kira". Equity berubah setelah setiap trade — hitung ulang selalu.</div>
+      </div>
+      <div class="pt-rule">
+        <div class="pt-rule-icon">✅</div>
+        <div class="pt-rule-text"><strong>Jurnal setiap trade, bukan hanya yang profit</strong>Trade loss yang terjurnal sama nilainya dengan trade profit — keduanya adalah data untuk improvement.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    Aplikasi ini adalah decision-support tool, bukan signal provider. Semua keputusan entry/exit tetap ada di tangan kamu. Gunakan Daun Merah untuk memastikan kamu tidak masuk dengan informasi yang kurang, bukan sebagai alasan untuk overtrade.
+  </div>
+
+</div>
 </div>
 
 <!-- COT PANEL -->
@@ -1731,7 +1954,7 @@ function setFeedUI(show) {
 }
 
 function hideAllPanels() {
-  ['feedScroll','ringkasanPanel','calPanel','cotPanel','checklistPanel','sizingPanel','jurnalPanel']
+  ['feedScroll','ringkasanPanel','calPanel','cotPanel','checklistPanel','sizingPanel','jurnalPanel','petunjukPanel']
     .forEach(id => { document.getElementById(id).style.display = 'none'; });
 }
 
@@ -1785,6 +2008,10 @@ document.querySelectorAll('#navViews .nvtab').forEach(btn => {
       activeView = 'jurnal';
       document.getElementById('jurnalPanel').style.display = 'block';
       initJurnal();
+    } else if (view === 'petunjuk') {
+      setFeedUI(false);
+      activeView = 'petunjuk';
+      document.getElementById('petunjukPanel').style.display = 'block';
     }
   });
 });
@@ -3444,6 +3671,10 @@ document.querySelectorAll('#botNav .bot-nav-btn').forEach(btn => {
   <button class="bot-nav-btn" data-view="jurnal">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
     <span>Jurnal</span>
+  </button>
+  <button class="bot-nav-btn" data-view="petunjuk">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>SOP</span>
   </button>
 </nav>
 </body>
