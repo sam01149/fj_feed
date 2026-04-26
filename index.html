@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Daun Merah">
 <title>Daun Merah</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
@@ -890,6 +892,47 @@ body {
 .regime-detail.hidden { display: none; }
 .regime-trigger { opacity: 0.5; }
 .regime-trigger.active { opacity: 1; font-weight: 700; }
+
+/* ── MOBILE BOTTOM NAV ── */
+.bot-nav { display: none; }
+
+@media (max-width: 767px) {
+  .nav-views { display: none; }
+  .bot-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,8,0.97);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bot-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 2px 6px;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 7px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    transition: color .15s;
+    min-width: 0;
+  }
+  .bot-nav-btn.active { color: var(--accent); }
+  .bot-nav-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .bot-nav-btn span { white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; }
+  .feed-scroll { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  .ck-sections { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+}
 </style>
 </head>
 <body>
@@ -1696,6 +1739,7 @@ document.querySelectorAll('#navViews .nvtab').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#navViews .nvtab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    document.querySelectorAll('#botNav .bot-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === btn.dataset.view));
     hideAllPanels();
     const view = btn.dataset.view;
     if (view === 'feed') {
@@ -3359,6 +3403,48 @@ async function szLoadHistory() {
     console.warn('sizing history load failed:', e.message);
   }
 }
+
+// Mobile bottom nav click handler
+document.querySelectorAll('#botNav .bot-nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.view;
+    const topBtn = document.querySelector('#navViews .nvtab[data-view="' + view + '"]');
+    if (topBtn) topBtn.click();
+    document.querySelectorAll('#botNav .bot-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  });
+});
 </script>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="bot-nav" id="botNav">
+  <button class="bot-nav-btn active" data-view="feed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <span>News</span>
+  </button>
+  <button class="bot-nav-btn" data-view="ringkasan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+    <span>Digest</span>
+  </button>
+  <button class="bot-nav-btn" data-view="cal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Cal</span>
+  </button>
+  <button class="bot-nav-btn" data-view="cot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>COT</span>
+  </button>
+  <button class="bot-nav-btn" data-view="checklist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <span>Check</span>
+  </button>
+  <button class="bot-nav-btn" data-view="sizing">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
+    <span>Sizing</span>
+  </button>
+  <button class="bot-nav-btn" data-view="jurnal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <span>Jurnal</span>
+  </button>
+</nav>
 </body>
 </html>

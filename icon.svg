@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 20 680 680" role="img">
+<title>Daun Merah</title>
+<rect x="40" y="40" width="600" height="640" rx="32" fill="#0a0a0a"/>
+<path d="M340 360 C 340 200, 460 140, 540 220 C 600 280, 560 380, 460 380 C 380 380, 340 320, 340 360 Z" fill="#b23030" stroke="#f5e6c8" stroke-width="2.5"/>
+<path d="M340 360 C 340 520, 220 580, 140 500 C 80 440, 120 340, 220 340 C 300 340, 340 400, 340 360 Z" fill="#0d4d4d" stroke="#f5e6c8" stroke-width="2.5"/>
+<path d="M540 220 C 480 270, 420 320, 340 360" fill="none" stroke="#f5e6c8" stroke-width="1.5" opacity="0.6"/>
+<path d="M140 500 C 200 450, 260 400, 340 360" fill="none" stroke="#f5e6c8" stroke-width="1.5" opacity="0.6"/>
+<line x1="500" y1="200" x2="490" y2="230" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<line x1="450" y1="200" x2="445" y2="240" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<line x1="400" y1="220" x2="400" y2="260" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<line x1="180" y1="520" x2="190" y2="490" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<line x1="230" y1="520" x2="235" y2="480" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<line x1="280" y1="500" x2="280" y2="460" stroke="#f5e6c8" stroke-width="1" opacity="0.5"/>
+<circle cx="340" cy="360" r="12" fill="#f5e6c8"/>
+<circle cx="340" cy="360" r="6" fill="#0a0a0a"/>
+</svg>

@@ -97,8 +97,8 @@ async function checkForNewItems() {
     const catLabel = cat.replace('-', ' ').toUpperCase();
     await self.registration.showNotification(`[${catLabel}] FJFeed`, {
       body: item.title,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
+      icon: './icon.svg',
+      badge: './icon.svg',
       tag: item.guid,
       data: { url: item.link },
       vibrate: [100, 50, 100],
@@ -124,8 +124,8 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'FJFeed', {
       body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/icon.svg',
+      badge: '/icon.svg',
       tag: 'fjfeed-push-' + Date.now(),
       data: { url: data.url || '/' },
       vibrate: [100, 50, 100],
