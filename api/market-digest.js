@@ -1,4 +1,5 @@
 // api/unified-digest.js
+const rateLimit = require('./_ratelimit');
 const RSS_URL      = 'https://www.financialjuice.com/feed.ashx?xy=rss';
 const FF_THIS_WEEK = 'https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
 const FF_NEXT_WEEK = 'https://nfs.faireconomy.media/ff_calendar_nextweek.xml';
@@ -9,6 +10,9 @@ const MAJOR_CURRENCIES = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF
 module.exports = async function handler(req, res) {
   console.log('market-digest v2 START', new Date().toISOString());
   res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // 3 Groq calls per request — rate limit to 4 req/min per IP
+  if (await rateLimit(req, res, { limit: 4, windowSecs: 60, endpoint: 'market-digest' })) return;
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');

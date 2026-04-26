@@ -1,31 +1,41 @@
 # DAUN MERAH — TASK 2-10 (REVISED)
 
-## STATUS UPDATE (2026-04-26)
+## STATUS UPDATE (2026-04-26) — SEMUA TASK SELESAI
 
-✅ **TASK 1 — Risk Regime Indicator** — DEPLOYED
+✅ **TASK 1 — Risk Regime Indicator** — DEPLOYED (commit a3baa1e)
+✅ **TASK 2 — Real Yield Differential** — DEPLOYED (commit bd16d06 + 80030ce)
+✅ **TASK 3 — Rate Path Expectations** — DEPLOYED (commit 022dc40) — SOFR heuristic, bukan CME FedWatch
+✅ **TASK 4 — Position Sizing Calculator** — DEPLOYED (commit 9e5f7fa)
+✅ **TASK 5 — Trade Journal** — DEPLOYED (commit 022dc40)
+✅ **TASK 6 — Structured Trade Thesis** — DEPLOYED (commit 022dc40)
+✅ **TASK 7 — Regime Gate Checklist** — DEPLOYED (commit 022dc40)
+✅ **TASK 8 — Configurable Playbooks** — DEPLOYED (commit 022dc40) — 4 playbook
+✅ **TASK 9 — Cross-Asset Correlations** — DEPLOYED (commit 022dc40)
+✅ **TASK 10a — Branding Consistency** — DEPLOYED (commit 022dc40)
+✅ **TASK 10b — CFTC Parser Robustness** — DEPLOYED (commit 022dc40)
 ✅ **TASK 10c — RSS Cache to Redis** — DEPLOYED (commit bd16d06)
 ✅ **TASK 10d — Calendar Refetch Interval** — DEPLOYED (commit bd16d06)
-✅ **TASK 2 — Real Yield Differential** — DEPLOYED backend + frontend (commit 80030ce)
-✅ **TASK 4 — Position Sizing Calculator** — DEPLOYED backend + frontend (commit 9e5f7fa)
+✅ **TASK 10e — Prompt Externalization** — DEPLOYED (commit 022dc40)
+✅ **TASK 10f — Health Monitoring** — SELESAI (lokal, belum di-push)
+✅ **TASK 10g — Redis Key Registry** — SELESAI (lokal, belum di-push)
+✅ **TASK 10h — Rate Limiting** — SELESAI (lokal, belum di-push)
 
 ---
 
-## REVISED EXECUTION ORDER
+## ACTUAL EXECUTION ORDER (SELESAI)
 
-Dari audit yang dilakukan, urutan task diubah agar quick wins didahulukan dan task dengan data source uncertain di-defer:
-
-1. ✅ Task 1 (done)
-2. ✅ **Task 10c + 10d** — deployed
-3. ✅ **Task 2** — deployed
-4. ✅ **Task 4** — deployed
-5. **Task 7** — Regime gate (alignment check, not extremity) ← NEXT
-6. **Task 5** — Trade journal (depends on Task 4)
-7. **Task 6** — Structured thesis
-8. **Task 8a** — Playbook refactor foundation
-9. **Task 3** — Rate path (corrected source)
-10. **Task 9** — Correlations
-11. **Task 8b/c/d** — Additional playbooks
-12. **Task 10a/b/e/f/g/h** — Remaining hardening
+1. ✅ Task 1
+2. ✅ Task 10c + 10d
+3. ✅ Task 2
+4. ✅ Task 4
+5. ✅ Task 7 — Regime gate
+6. ✅ Task 5 — Trade journal
+7. ✅ Task 6 — Structured thesis
+8. ✅ Task 8 — Configurable playbooks (4 playbook sekaligus, bukan bertahap)
+9. ✅ Task 3 — Rate path (SOFR heuristic, bukan CME FedWatch)
+10. ✅ Task 9 — Correlations
+11. ✅ Task 10a/b/e — Hardening
+12. ✅ Task 10f/g/h — SELESAI (lokal, belum di-push)
 
 ---
 
@@ -188,8 +198,8 @@ Position sizing salah adalah penyebab #1 retail account blow-up — bukan analis
 
 ---
 
-## ⬜ TASK 7 — Regime Gate Checklist (CORRECTED)
-**Status: BELUM DIMULAI ← NEXT**
+## ✅ TASK 7 — Regime Gate Checklist (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
 **Prerequisite:** Task 1 deployed ✓, Task 2 deployed (untuk auto-tick item 5)
 
 **Kegunaan:**
@@ -246,8 +256,8 @@ REGIME CHECK (PRE-GATE)
 
 ---
 
-## ⬜ TASK 5 — Trade Journal (UPDATED PREREQUISITES)
-**Status: BELUM DIMULAI**
+## ✅ TASK 5 — Trade Journal (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
 **Prerequisite:** Task 1 ✓, Task 4 (untuk integrasi sizing → journal)
 
 **Kegunaan:**
@@ -367,8 +377,8 @@ Form close trade:
 
 ---
 
-## ⬜ TASK 6 — Structured Trade Thesis (RELIABILITY UPGRADE)
-**Status: BELUM DIMULAI**
+## ✅ TASK 6 — Structured Trade Thesis (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
 **Prerequisite:** Task 1 ✓, Task 5
 
 **Kegunaan:**
@@ -484,8 +494,8 @@ TIDAK ADA SETUP CLEAR HARI INI
 
 ---
 
-## ⬜ TASK 8a — Playbook Foundation (REFACTOR ONLY)
-**Status: BELUM DIMULAI**
+## ✅ TASK 8 — Configurable Playbooks (SELESAI — commit 022dc40)
+**Status: DEPLOYED — semua 4 playbook (smc_ict, macro_momentum, event_driven, mean_reversion) sekaligus**
 **Prerequisite:** Task 7
 
 **Kegunaan:**
@@ -531,8 +541,10 @@ UI changes:
 
 ---
 
-## ⬜ TASK 3 — Rate Path Expectations (CORRECTED SOURCE)
-**Status: BELUM DIMULAI**
+## ✅ TASK 3 — Rate Path Expectations (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
+
+> **CATATAN PENTING:** Implementasi final berbeda dari plan. CME FedWatch = SPA, tidak bisa di-scrape. Atlanta Fed juga tidak feasible. Final impl: FRED SOFR/EFFR + heuristic probability + hardcoded FOMC dates 2026. Response includes `data_note` field yang transparently explain ini approximation.
 **Prerequisite:** Task 1 ✓
 
 **Kegunaan:**
@@ -600,8 +612,10 @@ Cache: Redis `rate_path` TTL 4 jam
 
 ---
 
-## ⬜ TASK 9 — Cross-Asset Correlation Snapshot (UPGRADED)
-**Status: BELUM DIMULAI**
+## ✅ TASK 9 — Cross-Asset Correlation Snapshot (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
+
+> **CATATAN:** Diimplementasikan sebagai on-demand (tombol, bukan auto-fetch) karena 10 Stooq CSV terlalu lambat. 20d+60d windows (bukan 5d+20d seperti plan). Anomaly threshold `|r20-r60| > 0.4`.
 **Prerequisite:** Task 1 ✓
 
 **Kegunaan:**
@@ -679,9 +693,8 @@ Tooltip text per anomaly:
 
 ---
 
-## ⬜ TASK 8b — Macro Momentum Playbook
-**Status: BELUM DIMULAI**
-**Prerequisite:** Task 8a
+## ✅ TASK 8b — Macro Momentum Playbook (termasuk dalam commit 022dc40)
+**Status: DEPLOYED — dikerjakan bersamaan dengan 8a/c/d**
 
 **Kegunaan:**
 Playbook untuk swing 1-4 minggu yang bersandar pada macro divergence (Fed hawkish vs ECB dovish, growth differential, real yield spread). Cocok untuk trader yang punya time horizon swing dan tidak ingin scalp daily news. Section akan fokus ke: konfirmasi divergence persistent (bukan satu data point), entry di pullback ke level structural mingguan, hold sampai macro thesis invalidated (bukan sampai stop hit).
@@ -690,9 +703,8 @@ Sections lengkap akan di-detail setelah 8a deployed.
 
 ---
 
-## ⬜ TASK 8c — Event-Driven Playbook
-**Status: BELUM DIMULAI**
-**Prerequisite:** Task 8a
+## ✅ TASK 8c — Event-Driven Playbook (termasuk dalam commit 022dc40)
+**Status: DEPLOYED**
 
 **Kegunaan:**
 Playbook untuk trade specific event: FOMC, CPI, NFP, central bank decisions. Ini event yang punya structure relatif konsisten (volatility spike, reaksi initial sering reverse, ada window 30-60 menit untuk fade). Berbeda dari macro momentum karena holding period pendek (jam sampai 1-2 hari). Section akan fokus ke: positioning sebelum event (flat atau hedged), pre-defined scenario A/B/C berdasarkan rilis, entry trigger setelah initial spike settle, exit di defined target atau time stop.
@@ -701,17 +713,16 @@ Sections lengkap akan di-detail setelah 8a deployed.
 
 ---
 
-## ⬜ TASK 8d — Mean Reversion Playbook
-**Status: BELUM DIMULAI / OPTIONAL**
-**Prerequisite:** Task 8a
+## ✅ TASK 8d — Mean Reversion Playbook (termasuk dalam commit 022dc40)
+**Status: DEPLOYED**
 
 **Kegunaan:**
 Playbook untuk fade extreme moves di range conditions. **Catatan metodologis: mean reversion di retail FX di rezim trending punya failure rate tinggi** — mayoritas major pairs sebenarnya trending atau ranging dengan trend bias, bukan true mean-reverting. Playbook ini hanya cocok untuk: (a) cross pairs yang historically range-bound, (b) overbought/oversold extremes setelah news spike, (c) saat regime classifier confirm "low volatility ranging". Pertimbangkan apakah perlu separate playbook atau cukup tag di journal. Tidak rekomendasikan execute kecuali ada use case spesifik yang teruji.
 
 ---
 
-## ⬜ TASK 10a — Branding Consistency
-**Status: BELUM DIMULAI**
+## ✅ TASK 10a — Branding Consistency (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
 
 **Kegunaan:**
 Saat ini "FJFeed" muncul di README, package.json, push.js Telegram messages — tapi UI dan manifest sudah "Daun Merah". Inkonsistensi ini bingungkan saat: share screenshot (notifikasi bilang FJFeed tapi app bilang Daun Merah), review repo (README pakai nama lama), atau onboarding orang lain ke project. Pure cosmetic tapi 30 menit fix.
@@ -725,8 +736,8 @@ Update ke "Daun Merah" di:
 
 ---
 
-## ⬜ TASK 10b — CFTC Parser Robustness
-**Status: BELUM DIMULAI**
+## ✅ TASK 10b — CFTC Parser Robustness (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
 
 **Kegunaan:**
 CFTC text format untuk COT report fragile — sewaktu-waktu CFTC bisa ubah whitespace, kolom, atau heading. Parser saat ini akan break diam-diam (return data partial atau kosong) tanpa user tahu. UI lalu show data lama yang user kira fresh. Robustness layer: jika parsed currencies <5 (artinya parse rusak), fallback ke stale cache + Telegram alert ke admin. User dapat indikator "Data lama" di UI, bukan data fake yang terlihat fresh. Lebih baik gagal jujur daripada gagal diam-diam.
@@ -738,8 +749,11 @@ CFTC text format untuk COT report fragile — sewaktu-waktu CFTC bisa ubah white
 
 ---
 
-## ⬜ TASK 10e — Prompt Externalization
-**Status: BELUM DIMULAI**
+## ✅ TASK 10e — Prompt Externalization (SELESAI — commit 022dc40)
+**Status: DEPLOYED**
+
+> Admin endpoint: `GET/POST/DELETE /api/admin-prompts?key=prompt_digest|prompt_bias|prompt_thesis`  
+> Header auth: `x-admin-secret: <CRON_SECRET>`
 
 **Kegunaan:**
 Prompt untuk Groq saat ini hardcoded di `market-digest.js`. Tiap kali Anda mau eksperimen ubah prompt (misalnya tambah instruction, ganti tone, tweak structured output), harus edit code → commit → push → wait Vercel deploy → test. Slow iteration cycle. Externalize prompt ke Redis = ubah prompt via admin endpoint, langsung effect di next request. Juga enable A/B testing: simpan multiple versions, switch via flag, observe mana yang menghasilkan output lebih bagus. Critical untuk Task 6 (structured thesis) yang akan butuh prompt tuning intensif.

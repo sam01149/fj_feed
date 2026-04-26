@@ -3,6 +3,7 @@
 // rolling 20-day correlation matrix. Flags pairs deviating >1.5 std from mean.
 // Redis cache: correlations, TTL 24 hours (86400s).
 
+const rateLimit = require('./_ratelimit');
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' };
 const CACHE_KEY = 'correlations';
 const CACHE_TTL = 86400;
@@ -93,6 +94,9 @@ module.exports = async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Correlations fetches 10 Stooq CSVs — rate limit to 5 req/min per IP
+  if (await rateLimit(req, res, { limit: 5, windowSecs: 60, endpoint: 'correlations' })) return;
 
   // Try Redis cache first
   try {
