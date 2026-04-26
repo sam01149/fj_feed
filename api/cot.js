@@ -158,6 +158,18 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  const parsedCount = Object.keys(positions).length;
+
+  // Task 10b: if fewer than 5 currencies parsed, treat as suspicious parse failure
+  if (parsedCount < 5) {
+    console.warn(`COT parser: only ${parsedCount} currencies parsed — expected 7. Possible format change. Falling back to stale cache.`);
+    try {
+      const stale = await redisCmd('GET', 'cot_cache_v2');
+      if (stale) return res.status(200).json({ ...JSON.parse(stale), stale: true, parse_warning: `Only ${parsedCount}/7 currencies parsed from fresh fetch` });
+    } catch(e2) {}
+    return res.status(500).json({ error: `COT parser degraded: only ${parsedCount}/7 currencies parsed`, positions });
+  }
+
   const payload = {
     positions,
     report_date: reportDate,

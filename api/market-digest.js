@@ -76,21 +76,19 @@ module.exports = async function handler(req, res) {
     ? digestHistory.map(h => `[${h.wib}] ${h.summary}`).join('\n')
     : '(Belum ada riwayat — ini sesi pertama)';
 
+  // 3c. Load externalized prompts from Redis (Task 10e) — fall back to hardcoded if missing
+  let promptDigestInstr = null;
+  try {
+    promptDigestInstr = await redisCmd('GET', 'prompt_digest');
+  } catch(e) {
+    console.warn('prompt_digest Redis load failed:', e.message);
+  }
+
   // 4. Groq Call 1: market briefing
   let article = null, method = 'groq';
   if (GROQ_KEY && recentItems.length > 0) {
-    const prompt = `Kamu adalah analis pasar keuangan senior. Pembacamu adalah trader forex Indonesia yang sudah berpengalaman dengan gaya macro discretionary. Mereka sudah tahu cara baca chart dan sudah punya bias — yang mereka butuhkan dari kamu adalah konteks yang tidak bisa mereka lihat sendiri dari harga.
-
-WAKTU SAAT INI: ${dateStr}, ${timeStr}
-
-=== HEADLINE BERITA TERKINI (${recentItems.length} berita, 12 jam terakhir) ===
-${headlinesBlock}
-
-=== EVENT KALENDER EKONOMI HIGH-IMPACT (3 hari ke depan) ===
-${calBlock}
-
-=== RINGKASAN SESI SEBELUMNYA ===
-${historyBlock}
+    // Instruction part (can be overridden via Redis prompt_digest key)
+    const DIGEST_INSTR_DEFAULT = `Kamu adalah analis pasar keuangan senior. Pembacamu adalah trader forex Indonesia yang sudah berpengalaman dengan gaya macro discretionary. Mereka sudah tahu cara baca chart dan sudah punya bias — yang mereka butuhkan dari kamu adalah konteks yang tidak bisa mereka lihat sendiri dari harga.
 
 CARA MENULIS:
 
@@ -118,6 +116,20 @@ LARANGAN ABSOLUT — kalau kamu menulis salah satu dari ini, analisismu gagal:
 — Kalimat apapun yang bisa ditulis tanpa membaca headlines sama sekali
 
 Seluruh output dalam Bahasa Indonesia. Tidak ada bullet list, tidak ada heading, tidak ada emoji, tidak ada bold.`;
+
+    const digestInstr = promptDigestInstr || DIGEST_INSTR_DEFAULT;
+    const prompt = `${digestInstr}
+
+WAKTU SAAT INI: ${dateStr}, ${timeStr}
+
+=== HEADLINE BERITA TERKINI (${recentItems.length} berita, 12 jam terakhir) ===
+${headlinesBlock}
+
+=== EVENT KALENDER EKONOMI HIGH-IMPACT (3 hari ke depan) ===
+${calBlock}
+
+=== RINGKASAN SESI SEBELUMNYA ===
+${historyBlock}`;
 
     try {
       const groqRes = await fetch(GROQ_URL, {
@@ -301,8 +313,93 @@ Seluruh output dalam Bahasa Indonesia. Tidak ada bullet list, tidak ada heading,
     }
   }
 
+  // ── 7. Groq Call 3: Structured Trade Thesis ─────────────
+  let thesis = null;
+  if (GROQ_KEY && recentItems.length > 0 && article) {
+    const cbSummary = biasUpdated.length > 0
+      ? `CB biases just updated for: ${biasUpdated.join(', ')}`
+      : 'CB biases unchanged this cycle';
+    const thesisPrompt = [
+      'You are a macro FX strategist. Based on the market context below, output a structured JSON trade thesis.',
+      '',
+      `Market briefing (current session): ${article.slice(0, 800)}`,
+      '',
+      cbSummary,
+      '',
+      'Return ONLY valid JSON with this exact schema (no markdown, no explanation):',
+      '{',
+      '  "dominant_regime": "risk_on" | "risk_off" | "neutral",',
+      '  "strongest_currency": "USD",',
+      '  "weakest_currency": "JPY",',
+      '  "pair_recommendation": "USD/JPY",',
+      '  "direction": "long" | "short" | "no_trade",',
+      '  "confidence_1_to_5": 3,',
+      '  "invalidation_condition": "string",',
+      '  "time_horizon_days": 5,',
+      '  "catalyst_dependency": "string"',
+      '}',
+      '',
+      'Use only 8 major currencies: USD EUR GBP JPY CAD AUD NZD CHF.',
+      'Set direction to "no_trade" and confidence to 1-2 if conviction is low.',
+      'Only recommend a pair if CB bias divergence between the two currencies is at least 2 levels apart (e.g. Hawkish vs Dovish).',
+    ].join('\n');
+
+    let thesisRaw = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const thesisRes = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+          body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages: [{ role: 'user', content: thesisPrompt }],
+            temperature: 0.1,
+            max_tokens: 300,
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (thesisRes.ok) {
+          const td = await thesisRes.json();
+          const raw = td?.choices?.[0]?.message?.content?.trim() || '';
+          const clean = raw.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+          // Validate required fields
+          const VALID_DIR = ['long', 'short', 'no_trade'];
+          const VALID_REG = ['risk_on', 'risk_off', 'neutral'];
+          const VALID_CURR = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
+          if (
+            VALID_REG.includes(parsed.dominant_regime) &&
+            VALID_CURR.has(parsed.strongest_currency) &&
+            VALID_CURR.has(parsed.weakest_currency) &&
+            VALID_DIR.includes(parsed.direction) &&
+            typeof parsed.confidence_1_to_5 === 'number'
+          ) {
+            thesisRaw = parsed;
+            break;
+          } else {
+            console.warn('Thesis schema invalid on attempt', attempt + 1, JSON.stringify(parsed).slice(0, 200));
+          }
+        }
+      } catch(e) {
+        console.warn('Thesis Groq call attempt', attempt + 1, 'failed:', e.message);
+      }
+    }
+
+    if (thesisRaw) {
+      thesis = thesisRaw;
+      try {
+        await redisCmd('SET', 'latest_thesis', JSON.stringify(thesis), 'EX', 21600);
+        console.log('Thesis saved to Redis');
+      } catch(e) {
+        console.warn('Thesis Redis save failed:', e.message);
+      }
+    } else {
+      console.warn('Thesis generation failed after 2 attempts — null returned');
+    }
+  }
+
   return res.status(200).json({
-    article, method,
+    article, method, thesis,
     news_count:   recentItems.length,
     cal_count:    calEvents.length,
     bias_updated: biasUpdated,

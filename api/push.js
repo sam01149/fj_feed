@@ -9,7 +9,7 @@ const REDIS_URL     = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN   = process.env.UPSTASH_REDIS_REST_TOKEN;
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@fjfeed.app';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@daun-merah.app';
 const TG_TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const TG_CHAT_ID    = process.env.TELEGRAM_CHAT_ID;
 const CRON_SECRET   = process.env.CRON_SECRET;
@@ -75,7 +75,7 @@ module.exports = async function handler(req, res) {
     const EMOJI = { 'market-moving':'🔴','forex':'💱','energy':'⚡','macro':'🏦','geopolitical':'🌐','econ-data':'📋','news':'📰' };
     const cat = detectCat(newItems[0].title);
     const payload = JSON.stringify({
-      title: newItems.length===1 ? `${EMOJI[cat]||'📰'} FJFeed` : `📰 FJFeed — ${newItems.length} berita baru`,
+      title: newItems.length===1 ? `${EMOJI[cat]||'📰'} Daun Merah` : `📰 Daun Merah — ${newItems.length} berita baru`,
       body:  newItems.length===1 ? newItems[0].title : newItems.slice(0,2).map(i=>`• ${i.title}`).join('\n'),
       url:   newItems[0]?.link || '/',
       icon:  '/icon-192.png',
@@ -103,7 +103,7 @@ async function sendTelegram(newItems) {
   try {
     await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ chat_id:TG_CHAT_ID, text:`*FJFeed — ${newItems.length} berita baru*\n\n${lines.join('\n')}`, parse_mode:'Markdown', disable_web_page_preview:true }),
+      body:JSON.stringify({ chat_id:TG_CHAT_ID, text:`*Daun Merah — ${newItems.length} berita baru*\n\n${lines.join('\n')}`, parse_mode:'Markdown', disable_web_page_preview:true }),
       signal:AbortSignal.timeout(10000),
     });
   } catch(e) { console.warn('Telegram:', e.message); }
