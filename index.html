@@ -1110,7 +1110,7 @@ body {
       <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">Klik tombol Korelasi untuk memuat data.</div>
     </div>
     <div style="margin-top:8px">
-      <button class="jn-btn-sec" onclick="fetchCorrelations()" style="width:100%;font-size:10px">↻ Muat Korelasi Cross-Asset</button>
+      <button id="corrBtn" class="jn-btn-sec" onclick="fetchCorrelations()" style="width:100%;font-size:10px">↻ Muat Korelasi Cross-Asset</button>
     </div>
   </div>
 </div>
@@ -2187,17 +2187,23 @@ function fmtCBTime(iso) {
 }
 
 async function fetchCorrelations() {
+  const btn = document.getElementById('corrBtn');
+  const panel = document.getElementById('corrPanel');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Memuat...'; }
+  if (panel) panel.innerHTML = `<div class="corr-title">CROSS-ASSET CORRELATIONS</div><div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">Mengambil data dari server…</div>`;
   try {
     const res = await fetch('/api/correlations', { signal: AbortSignal.timeout(30000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data.error) {
-      corrData  = data;
-      corrFetAt = Date.now();
-      renderCorrelations();
-    }
+    if (data.error) throw new Error(data.error);
+    corrData  = data;
+    corrFetAt = Date.now();
+    renderCorrelations();
   } catch(e) {
     console.warn('Correlations fetch failed:', e.message);
+    if (panel) panel.innerHTML = `<div class="corr-title">CROSS-ASSET CORRELATIONS</div><div style="font-size:10px;color:#e05c5c;font-family:'DM Mono',monospace">Gagal memuat: ${e.message}. Coba lagi beberapa saat.</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Muat Korelasi Cross-Asset'; }
   }
 }
 
