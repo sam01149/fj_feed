@@ -1217,7 +1217,7 @@ body {
 </div>
 
 <script>
-const FETCH_URL = '/api/rss';
+const FETCH_URL = '/api/feeds?type=rss';
 
 const CATS = {
   'market-moving': ['market moving','breaking','flash','urgent','alert','war','blockade'],
@@ -1979,7 +1979,7 @@ async function fetchRealYields() {
 // ── COT POSITIONING ──────────────────────────────────────
 async function fetchCOT() {
   try {
-    const res = await fetch('/api/cot', { signal: AbortSignal.timeout(25000) });
+    const res = await fetch('/api/feeds?type=cot', { signal: AbortSignal.timeout(25000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     cotData      = data;

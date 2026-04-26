@@ -1,10 +1,111 @@
-// api/cot.js
-// Fetches CFTC COT report (TFF - Traders in Financial Futures)
-// Tracks Leveraged Funds (hedge fund) net positions for 7 major currencies
-// Released every Friday 3:30 PM ET — cached in Redis 6 hours
+// api/feeds.js — consolidated feeds endpoint
+// GET /api/feeds?type=rss  → FinancialJuice RSS XML (50s cache)
+// GET /api/feeds?type=cot  → CFTC COT JSON (6h cache)
 
-const CFTC_URL    = 'https://www.cftc.gov/dea/options/financial_lof.htm';
-const CACHE_TTL   = 6 * 60 * 60 * 1000;
+module.exports = async function handler(req, res) {
+  const type = req.query.type;
+  if (type === 'rss') return rssHandler(req, res);
+  if (type === 'cot') return cotHandler(req, res);
+  return res.status(400).json({ error: 'Missing ?type= — use rss or cot' });
+};
+
+// ── Shared Redis helper ────────────────────────────────────────────────────────
+
+async function redisCmd(...args) {
+  const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
+  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!REDIS_URL || !REDIS_TOKEN) return null;
+  try {
+    const r = await fetch(REDIS_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(5000),
+    });
+    return (await r.json()).result;
+  } catch(e) { return null; }
+}
+
+// ── RSS handler (was api/rss.js) ──────────────────────────────────────────────
+
+const rssMemCache = { xml: null, fetchedAt: 0 };
+const RSS_CACHE_TTL_MS = 50 * 1000;
+const RSS_CACHE_KEY    = 'rss_cache';
+const RSS_URL          = 'https://www.financialjuice.com/feed.ashx?xy=rss';
+const RSS_USER_AGENTS  = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Feedly/1.0 (+http://www.feedly.com/fetcher.html; like FeedFetcher-Google)',
+  'NewsBlur Feed Fetcher - 1000000 subscribers',
+];
+
+async function rssHandler(req, res) {
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  const now = Date.now();
+
+  if (rssMemCache.xml && now - rssMemCache.fetchedAt < RSS_CACHE_TTL_MS) {
+    res.setHeader('X-Cache-Source', 'MEMORY');
+    return res.status(200).send(rssMemCache.xml);
+  }
+
+  try {
+    const cached = await redisCmd('GET', RSS_CACHE_KEY);
+    if (cached) {
+      const obj = JSON.parse(cached);
+      if (now - obj.fetchedAt < RSS_CACHE_TTL_MS) {
+        rssMemCache.xml = obj.xml;
+        rssMemCache.fetchedAt = obj.fetchedAt;
+        res.setHeader('X-Cache-Source', 'REDIS');
+        return res.status(200).send(obj.xml);
+      }
+    }
+  } catch(e) {
+    console.warn('RSS Redis GET failed:', e.message);
+  }
+
+  const ua = RSS_USER_AGENTS[Math.floor(Math.random() * RSS_USER_AGENTS.length)];
+  let xml = null, fetchError = null;
+
+  try {
+    const r = await fetch(RSS_URL, {
+      headers: { 'User-Agent': ua, 'Accept': 'application/rss+xml,*/*', 'Referer': 'https://www.financialjuice.com/', 'Cache-Control': 'no-cache' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (r.ok) { const t = await r.text(); if (t.includes('<rss')) xml = t; else fetchError = 'NOT_RSS'; }
+    else fetchError = 'HTTP_' + r.status;
+  } catch(e) { fetchError = e.message; }
+
+  if (!xml) {
+    try {
+      const stale = await redisCmd('GET', RSS_CACHE_KEY);
+      if (stale) {
+        const obj = JSON.parse(stale);
+        res.setHeader('X-Cache-Source', 'STALE');
+        return res.status(200).send(obj.xml);
+      }
+    } catch(e2) {}
+    if (rssMemCache.xml) {
+      res.setHeader('X-Cache-Source', 'STALE');
+      return res.status(200).send(rssMemCache.xml);
+    }
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(502).json({ error: 'Upstream fetch failed', detail: fetchError });
+  }
+
+  const payload = JSON.stringify({ xml, fetchedAt: now });
+  redisCmd('SET', RSS_CACHE_KEY, payload, 'EX', 60).catch(() => {});
+  rssMemCache.xml = xml;
+  rssMemCache.fetchedAt = now;
+
+  res.setHeader('X-Cache-Source', 'UPSTREAM');
+  return res.status(200).send(xml);
+}
+
+// ── COT handler (was api/cot.js) ──────────────────────────────────────────────
+
+const CFTC_URL      = 'https://www.cftc.gov/dea/options/financial_lof.htm';
+const COT_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 const MARKET_MARKERS = {
   EUR: ['euro fx'],
@@ -16,22 +117,20 @@ const MARKET_MARKERS = {
   CHF: ['swiss franc'],
 };
 
-module.exports = async function handler(req, res) {
+async function cotHandler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-cache');
 
-  // Serve Redis cache if fresh (v2 = new format with lev_net + am_net)
   try {
     const cached = await redisCmd('GET', 'cot_cache_v2');
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Date.now() - new Date(parsed.fetched_at).getTime() < CACHE_TTL) {
+      if (Date.now() - new Date(parsed.fetched_at).getTime() < COT_CACHE_TTL) {
         return res.status(200).json(parsed);
       }
     }
   } catch(e) {}
 
-  // Fetch CFTC page
   let preText = '';
   try {
     const r = await fetch(CFTC_URL, {
@@ -50,7 +149,6 @@ module.exports = async function handler(req, res) {
       .replace(/&gt;/g, '>');
   } catch(e) {
     console.error('CFTC fetch failed:', e.message);
-    // Return stale cache rather than error
     try {
       const stale = await redisCmd('GET', 'cot_cache_v2');
       if (stale) return res.status(200).json({ ...JSON.parse(stale), stale: true });
@@ -58,7 +156,6 @@ module.exports = async function handler(req, res) {
     return res.status(502).json({ error: 'CFTC unavailable: ' + e.message });
   }
 
-  // Report date from header line
   const dateMatch = preText.match(/Positions as of\s+([A-Za-z]+ \d+,?\s*\d{4})/i);
   const reportDate = dateMatch ? dateMatch[1].trim() : null;
 
@@ -66,7 +163,6 @@ module.exports = async function handler(req, res) {
   const textLower = preText.toLowerCase();
 
   for (const [currency, markers] of Object.entries(MARKET_MARKERS)) {
-    // Find start of this contract block
     let blockStart = -1;
     for (const marker of markers) {
       const idx = textLower.indexOf(marker);
@@ -74,14 +170,12 @@ module.exports = async function handler(req, res) {
     }
     if (blockStart === -1) continue;
 
-    // Block ends just before the NEXT contract's "CFTC Code #"
     const firstCode = textLower.indexOf('cftc code #', blockStart);
     if (firstCode === -1) continue;
     const nextCode  = textLower.indexOf('cftc code #', firstCode + 50);
     const block = preText.slice(blockStart, nextCode !== -1 ? nextCode - 50 : blockStart + 3000);
     const lines = block.split('\n');
 
-    // Find "Positions" label → data is on next line with numbers
     let posIdx = -1;
     for (let i = 0; i < lines.length; i++) {
       if (/^\s*Positions\s*$/i.test(lines[i])) { posIdx = i; break; }
@@ -93,7 +187,6 @@ module.exports = async function handler(req, res) {
         if (/[\d,]{3,}/.test(lines[i])) { dataLine = lines[i]; break; }
       }
     }
-    // Fallback: first line with 10+ numbers
     if (!dataLine) {
       for (const line of lines) {
         const n = line.trim().split(/\s+/).filter(s => /^-?[\d,]+$/.test(s));
@@ -107,12 +200,6 @@ module.exports = async function handler(req, res) {
       .filter(n => !isNaN(n));
     if (nums.length < 8) continue;
 
-    // TFF column layout (0-indexed):
-    // 0: Dealer Long  1: Dealer Short  2: Dealer Spread
-    // 3: AM Long      4: AM Short      5: AM Spread
-    // 6: Lev Long     7: Lev Short     8: Lev Spread
-    // 9: Other Long  10: Other Short  11: Other Spread
-    // 12: NR Long    13: NR Short
     const amLong   = nums[3];
     const amShort  = nums[4];
     const amNet    = amLong - amShort;
@@ -120,23 +207,17 @@ module.exports = async function handler(req, res) {
     const levShort = nums[7];
     const levNet   = levLong - levShort;
 
-    // Find "Changes from:" → data on next line
     let levChangeNet = null;
     let amChangeNet  = null;
     for (let i = 0; i < lines.length; i++) {
       if (/Changes from/i.test(lines[i])) {
         let changeLine = '';
-        if (i + 1 < lines.length && /[\d,]/.test(lines[i + 1])) {
-          changeLine = lines[i + 1];
-        }
+        if (i + 1 < lines.length && /[\d,]/.test(lines[i + 1])) changeLine = lines[i + 1];
         if (changeLine) {
           const cn = changeLine.trim().split(/\s+/)
             .map(s => parseInt(s.replace(/,/g, '')))
             .filter(n => !isNaN(n));
-          if (cn.length >= 8) {
-            amChangeNet  = cn[3] - cn[4];
-            levChangeNet = cn[6] - cn[7];
-          }
+          if (cn.length >= 8) { amChangeNet = cn[3] - cn[4]; levChangeNet = cn[6] - cn[7]; }
         }
         break;
       }
@@ -148,7 +229,6 @@ module.exports = async function handler(req, res) {
     };
   }
 
-  // Calculate release date (report_date = Tuesday, released 3 days later = Friday)
   let releaseDate = null;
   if (reportDate) {
     const d = new Date(reportDate);
@@ -160,7 +240,6 @@ module.exports = async function handler(req, res) {
 
   const parsedCount = Object.keys(positions).length;
 
-  // Task 10b: if fewer than 5 currencies parsed, treat as suspicious parse failure
   if (parsedCount < 5) {
     console.warn(`COT parser: only ${parsedCount} currencies parsed — expected 7. Possible format change. Falling back to stale cache.`);
     try {
@@ -179,17 +258,4 @@ module.exports = async function handler(req, res) {
 
   redisCmd('SET', 'cot_cache_v2', JSON.stringify(payload)).catch(() => {});
   return res.status(200).json(payload);
-};
-
-async function redisCmd(...args) {
-  const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
-  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!REDIS_URL || !REDIS_TOKEN) return null;
-  const res = await fetch(REDIS_URL, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
-    signal: AbortSignal.timeout(5000),
-  });
-  return (await res.json()).result;
 }
