@@ -1075,6 +1075,10 @@ let ringkasanCache = null;
 let cotData      = null;
 let cotFetchedAt = 0;
 
+// Real Yields state
+let realYieldsData  = null;
+let realYieldsFetAt = 0;
+
 // ── SERVICE WORKER ───────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -1443,6 +1447,7 @@ document.querySelectorAll('#navViews .nvtab').forEach(btn => {
       else renderCalendar();
       if (!cbData || (now - cbFetchedAt) > 5 * 60 * 1000) fetchCBStatus();
       else renderCBTracker();
+      if (!realYieldsData || (now - realYieldsFetAt) > 6 * 60 * 60 * 1000) fetchRealYields();
     } else if (view === 'cot') {
       setFeedUI(false);
       activeView = 'cot';
@@ -1564,6 +1569,15 @@ function renderCBTracker() {
         </div>
         <div class="cb-rate">${cb.rate.toFixed(2)}%</div>
         <div class="cb-rate-label">Interest Rate</div>
+        ${(() => {
+          const ry = realYieldsData && realYieldsData[cb.currency];
+          if (!ry || ry.real == null) return '';
+          const sign = ry.real >= 0 ? '+' : '';
+          const col  = ry.real >= 0 ? 'var(--green)' : 'var(--red)';
+          const staleEl = ry.stale ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--yellow);margin-left:4px;vertical-align:middle;" title="Data inflasi >90 hari"></span>` : '';
+          const tooltip = `Nom ${ry.nominal != null ? ry.nominal.toFixed(2) : '?'}% − Inf ${ry.inflation_exp.toFixed(2)}%`;
+          return `<div class="cb-rate-label" style="color:${col};margin-top:2px" title="${tooltip}">Real: ${sign}${ry.real.toFixed(2)}%${staleEl}<br><span style="font-size:9px;opacity:.6">${tooltip}</span></div>`;
+        })()}
         <div class="cb-decision ${decisionClass}">${decisionText}</div>
         <br>
         <div class="cb-bias ${biasClass}">${biasLabel}${confidenceDot}</div>
@@ -1586,6 +1600,19 @@ function fmtCBTime(iso) {
   const d = new Date(iso);
   const wib = new Date(d.getTime() + 7*3600000);
   return `${String(wib.getUTCHours()).padStart(2,'0')}:${String(wib.getUTCMinutes()).padStart(2,'0')} WIB`;
+}
+
+async function fetchRealYields() {
+  try {
+    const res = await fetch('/api/real-yields', { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    realYieldsData  = data.currencies;
+    realYieldsFetAt = Date.now();
+    renderCBTracker();
+  } catch(e) {
+    console.warn('Real yields fetch failed:', e.message);
+  }
 }
 
 // ── COT POSITIONING ──────────────────────────────────────
@@ -1884,6 +1911,7 @@ window.addEventListener('load', () => {
   }
   setTimeout(fetchFeed, 400);
   setTimeout(fetchRegime, 800);
+  setTimeout(fetchRealYields, 1200);
   setInterval(fetchRegime, 15 * 60 * 1000);
   setInterval(updateCalLastUpdated, 60 * 1000);
 });
