@@ -119,6 +119,17 @@ LARANGAN ABSOLUT — kalau kamu menulis salah satu dari ini, analisismu gagal:
 — "sentimen pasar masih mixed"
 — Kalimat apapun yang bisa ditulis tanpa membaca headlines sama sekali
 
+---
+
+TAMBAHAN — LENS XAU/USD (SCALPING):
+
+Setelah analisis utama, tambahkan satu paragraf terpisah yang diawali dengan kata "XAUUSD:" (tanpa spasi sebelum titik dua). Paragraf ini menjawab tiga hal secara spesifik:
+1. Driver dominan: dari headlines hari ini, apa yang paling menggerakkan gold — tekanan USD/real yields, geopolitik/safe haven, atau risk sentiment (VIX, ekuitas)? Sebut angka konkret kalau ada (contoh: yield 10Y naik X bps, DXY di atas/bawah level kunci).
+2. Bias sesi: berdasarkan driver tersebut, tekanan ke atas atau ke bawah yang lebih dominan sekarang? Tegaskan arahnya, jangan abu-abu.
+3. Risiko spike: satu event atau rilis data dalam 24 jam ke depan yang paling berpotensi menciptakan pergerakan tajam di XAU/USD — penting untuk timing entry/exit scalper.
+
+Paragraf XAUUSD harus bisa dibaca berdiri sendiri oleh scalper yang hanya trading gold. Tetap Bahasa Indonesia, langsung ke poin.
+
 Seluruh output dalam Bahasa Indonesia. Tidak ada bullet list, tidak ada heading, tidak ada emoji, tidak ada bold.`;
 
     const digestInstr = promptDigestInstr || DIGEST_INSTR_DEFAULT;
