@@ -942,7 +942,8 @@ body {
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="cal-count-badge" id="calCountBadge">—</span>
-      <button class="cal-refresh-btn" id="calRefreshBtn" onclick="fetchCalendar()">
+      <span id="calLastUpdated" style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace"></span>
+      <button class="cal-refresh-btn" id="calRefreshBtn" onclick="fetchCalendar()" title="Auto-refresh setiap 60 menit">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -1438,7 +1439,7 @@ document.querySelectorAll('#navViews .nvtab').forEach(btn => {
       activeView = 'cal';
       document.getElementById('calPanel').style.display = 'block';
       const now = Date.now();
-      if (!calData || (now - calFetchedAt) > 15 * 60 * 1000) fetchCalendar();
+      if (!calData || (now - calFetchedAt) > 60 * 60 * 1000) fetchCalendar();
       else renderCalendar();
       if (!cbData || (now - cbFetchedAt) > 5 * 60 * 1000) fetchCBStatus();
       else renderCBTracker();
@@ -1468,6 +1469,13 @@ document.querySelectorAll('#navFilters .ftab').forEach(btn => {
 });
 
 // ── CALENDAR ─────────────────────────────────────────────
+function updateCalLastUpdated() {
+  const el = document.getElementById('calLastUpdated');
+  if (!el || !calFetchedAt) return;
+  const mins = Math.floor((Date.now() - calFetchedAt) / 60000);
+  el.textContent = mins < 1 ? 'baru saja' : `${mins}m lalu`;
+}
+
 async function fetchCalendar() {
   const inner = document.getElementById('calPanelInner');
   const btn = document.getElementById('calRefreshBtn');
@@ -1480,6 +1488,7 @@ async function fetchCalendar() {
     if (!Array.isArray(data.events)) throw new Error('Invalid response');
     calData      = data.events;
     calFetchedAt = Date.now();
+    updateCalLastUpdated();
     renderCalendar();
   } catch(e) {
     inner.innerHTML = `<div class="cal-empty">Gagal memuat kalender.<br><small style="color:#6b6860">${e.message}</small><br><br>
@@ -1876,6 +1885,7 @@ window.addEventListener('load', () => {
   setTimeout(fetchFeed, 400);
   setTimeout(fetchRegime, 800);
   setInterval(fetchRegime, 15 * 60 * 1000);
+  setInterval(updateCalLastUpdated, 60 * 1000);
 });
 
 // ── CHECKLIST ─────────────────────────────────────────────
