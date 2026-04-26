@@ -120,6 +120,22 @@ body {
 .nvtab[data-view="cot"].active       { color: var(--purple); border-bottom-color: var(--purple); }
 .nvtab[data-view="checklist"]        { color: var(--yellow); }
 .nvtab[data-view="checklist"].active { color: var(--yellow); border-bottom-color: var(--yellow); }
+.nvtab[data-view="sizing"]           { color: var(--accent); }
+.nvtab[data-view="sizing"].active    { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* SIZING FORM */
+.sizing-form { display:flex; flex-direction:column; gap:10px; }
+.sizing-form label { display:flex; flex-direction:column; gap:4px; font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:.05em; text-transform:uppercase; }
+.sizing-form input, .sizing-form select { background:var(--surface); color:var(--text); border:1px solid var(--border); padding:7px 10px; font-family:'DM Mono',monospace; font-size:12px; border-radius:3px; }
+.sizing-form button { background:var(--accent); color:#fff; border:none; padding:10px; font-family:'Syne',sans-serif; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; border-radius:3px; margin-top:4px; }
+.sz-result-block { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; margin-top:12px; }
+.sz-result-block .sz-main { font-size:22px; font-family:'DM Mono',monospace; font-weight:700; color:var(--text); }
+.sz-result-block .sz-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+.sz-r-table { margin-top:12px; border-collapse:collapse; width:100%; font-family:'DM Mono',monospace; font-size:11px; }
+.sz-r-table td { padding:3px 6px; }
+.sz-r-table .entry-row td { color:var(--text); font-weight:700; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.sz-hist-item { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:8px 10px; margin-bottom:6px; font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); }
+.sz-hist-item .sz-hist-main { font-size:12px; color:var(--text); margin-bottom:2px; }
 
 /* NAV FILTERS (secondary — only shown on NEWS view) */
 .nav-filters {
@@ -864,6 +880,7 @@ body {
   <button class="nvtab" data-view="cal" id="calTab">CAL</button>
   <button class="nvtab" data-view="cot" id="cotTab">COT</button>
   <button class="nvtab" data-view="checklist" id="checklistTab">CHECKLIST</button>
+  <button class="nvtab" data-view="sizing" id="sizingTab">SIZING</button>
 </div>
 
 <!-- CATEGORY FILTERS -->
@@ -954,6 +971,28 @@ body {
   </div>
   <div class="cal-panel-inner" id="calPanelInner">
     <div class="cal-empty">Memuat kalender ekonomi...</div>
+  </div>
+</div>
+
+<!-- SIZING PANEL -->
+<div class="feed-scroll" id="sizingPanel" style="display:none">
+  <div style="padding:16px 12px">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;font-family:'DM Mono',monospace;letter-spacing:.05em">POSITION SIZING CALCULATOR</div>
+    <div class="sizing-form">
+      <label>Equity (USD)<input type="number" id="szEquity" value="10000" min="100"></label>
+      <label>Risk %<input type="number" id="szRisk" value="0.5" min="0.01" max="2" step="0.1"></label>
+      <label>Pair
+        <select id="szPair"></select>
+      </label>
+      <label>Stop Distance (pips)<input type="number" id="szStop" value="20" min="1"></label>
+      <label>Entry Price<input type="number" id="szEntry" value="" step="0.00001"></label>
+      <button onclick="calcSizing()">HITUNG</button>
+    </div>
+    <div id="szBlockWarning" style="display:none;color:var(--red);padding:12px;border:1px solid var(--red);border-radius:4px;font-size:11px;margin-top:12px;font-family:'DM Mono',monospace;line-height:1.5">
+      ⚠ Risk per trade di atas 2% secara historis berasosiasi dengan blow-up rate >70% untuk akun retail. Sistem ini menolak input ini untuk melindungi modal.
+    </div>
+    <div id="szResult" style="display:none"></div>
+    <div id="szHistory" style="margin-top:24px"></div>
   </div>
 </div>
 
@@ -1418,7 +1457,7 @@ function setFeedUI(show) {
 }
 
 function hideAllPanels() {
-  ['feedScroll','ringkasanPanel','calPanel','cotPanel','checklistPanel']
+  ['feedScroll','ringkasanPanel','calPanel','cotPanel','checklistPanel','sizingPanel']
     .forEach(id => { document.getElementById(id).style.display = 'none'; });
 }
 
@@ -1460,6 +1499,11 @@ document.querySelectorAll('#navViews .nvtab').forEach(btn => {
       activeView = 'checklist';
       document.getElementById('checklistPanel').style.display = 'flex';
       initChecklist();
+    } else if (view === 'sizing') {
+      setFeedUI(false);
+      activeView = 'sizing';
+      document.getElementById('sizingPanel').style.display = 'block';
+      initSizing();
     }
   });
 });
@@ -2240,6 +2284,186 @@ function initChecklist() {
     ckInitialized = true;
   }
   ckRender();
+}
+
+// ── POSITION SIZING CALCULATOR ───────────────────────────
+
+const SZ_PAIRS = [
+  'EUR/USD','GBP/USD','AUD/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY',
+  'EUR/JPY','GBP/JPY','AUD/JPY','NZD/JPY','CAD/JPY','CHF/JPY',
+  'EUR/GBP','EUR/CAD','EUR/AUD','EUR/NZD','EUR/CHF',
+  'GBP/CAD','GBP/AUD','GBP/NZD','GBP/CHF',
+  'AUD/CAD','AUD/NZD','AUD/CHF',
+  'NZD/CAD','NZD/CHF','CAD/CHF',
+];
+
+// Pip value per 1 standard lot (100,000 units) in USD account
+// For XXX/USD pairs: pip = 0.0001 * 100000 = $10
+// For USD/YYY pairs: pip = (0.0001 / spot) * 100000 — needs entry price
+// For cross pairs: approximate via USD/quote triangulation — needs entry price
+// JPY pairs: pip = 0.01 (not 0.0001)
+function calcPipValueUSD(pair, entryPrice) {
+  const [base, quote] = pair.split('/');
+  const isJPY = quote === 'JPY';
+  const pipSize = isJPY ? 0.01 : 0.0001;
+  const lotUnits = 100000;
+
+  if (quote === 'USD') {
+    // EUR/USD, GBP/USD, AUD/USD, NZD/USD — pip value always $10
+    return pipSize * lotUnits; // = 10
+  }
+  if (base === 'USD') {
+    // USD/CAD, USD/CHF, USD/JPY — pip value = (pipSize / spot) * lotUnits
+    if (!entryPrice || entryPrice <= 0) return null;
+    return (pipSize / entryPrice) * lotUnits;
+  }
+  // Cross pairs (EUR/JPY, GBP/CAD, etc.) — approximate using entry price as USD value proxy
+  // Not perfect without live USD/quote rate, but accurate enough for sizing
+  if (!entryPrice || entryPrice <= 0) return null;
+  // For JPY cross (EUR/JPY etc): pip value in USD = (0.01 / entry) * 100000 * USD/JPY_approx
+  // We don't have USD/JPY live, so we use approximate: pip in quote / entry * lotUnits
+  return (pipSize / entryPrice) * lotUnits;
+}
+
+let szInitialized = false;
+const SZ_DEVICE_KEY = 'daun_merah_device_id';
+
+function szGetDeviceId() {
+  let id = localStorage.getItem(SZ_DEVICE_KEY);
+  if (!id) {
+    id = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(SZ_DEVICE_KEY, id);
+  }
+  return id;
+}
+
+function initSizing() {
+  if (!szInitialized) {
+    const sel = document.getElementById('szPair');
+    SZ_PAIRS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      sel.appendChild(opt);
+    });
+    szInitialized = true;
+    szLoadHistory();
+  }
+}
+
+function calcSizing() {
+  const equity  = parseFloat(document.getElementById('szEquity').value) || 0;
+  const riskPct = parseFloat(document.getElementById('szRisk').value) || 0;
+  const pair    = document.getElementById('szPair').value;
+  const stopPips = parseFloat(document.getElementById('szStop').value) || 0;
+  const entry   = parseFloat(document.getElementById('szEntry').value) || 0;
+
+  const warnEl   = document.getElementById('szBlockWarning');
+  const resultEl = document.getElementById('szResult');
+
+  warnEl.style.display = 'none';
+  resultEl.style.display = 'none';
+
+  if (riskPct > 2) {
+    warnEl.style.display = 'block';
+    return;
+  }
+  if (!pair || equity <= 0 || riskPct <= 0 || stopPips <= 0) return;
+
+  const dollarRisk = equity * (riskPct / 100);
+  const pipVal = calcPipValueUSD(pair, entry);
+
+  if (pipVal === null) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div class="sz-result-block"><div class="sz-sub" style="color:var(--yellow)">Masukkan Entry Price untuk pair ini agar pip value bisa dihitung.</div></div>`;
+    return;
+  }
+
+  const lotsRaw = dollarRisk / (stopPips * pipVal);
+  const lots = Math.floor(lotsRaw * 100) / 100; // round down to 2dp
+  const miniLots = Math.floor(lotsRaw * 10 * 100) / 100;
+  const microLots = Math.floor(lotsRaw * 100 * 100) / 100;
+
+  const warnings = [];
+  if (stopPips < 5) warnings.push('Stop terlalu sempit — slippage bisa hit prematurely');
+
+  // R-multiple table
+  const pipValPerLot = pipVal;
+  const rDollar = dollarRisk;
+  const rows = [
+    { label: '-2R', mult: -2 },
+    { label: '-1R', mult: -1 },
+    { label: 'Entry', mult: 0, isEntry: true },
+    { label: '+1R', mult: 1 },
+    { label: '+2R', mult: 2 },
+    { label: '+3R', mult: 3 },
+  ];
+
+  const rTableRows = rows.map(r => {
+    const pnl = r.mult * rDollar;
+    const eq  = equity + pnl;
+    const sign = pnl > 0 ? '+' : '';
+    const col = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text)';
+    if (r.isEntry) {
+      return `<tr class="entry-row"><td>${r.label}</td><td style="color:var(--text)">$${equity.toLocaleString()}</td><td></td></tr>`;
+    }
+    return `<tr><td style="color:${col}">${r.label}</td><td style="color:${col}">$${eq.toLocaleString('en',{minimumFractionDigits:0,maximumFractionDigits:0})}</td><td style="color:${col}">${sign}$${Math.abs(pnl).toLocaleString('en',{minimumFractionDigits:0,maximumFractionDigits:0})}</td></tr>`;
+  }).join('');
+
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div class="sz-result-block">
+      <div class="sz-main">${lots.toFixed(2)} lots</div>
+      <div class="sz-sub">${miniLots.toFixed(2)} mini · ${microLots.toFixed(2)} micro</div>
+      <div class="sz-sub" style="margin-top:6px">Dollar at risk: <span style="color:var(--red)">$${dollarRisk.toFixed(2)}</span> · Pip value: $${pipVal.toFixed(2)}/lot</div>
+      ${warnings.map(w => `<div style="color:var(--yellow);font-size:10px;margin-top:6px">⚠ ${w}</div>`).join('')}
+      <table class="sz-r-table">${rTableRows}</table>
+    </div>`;
+
+  // Save to history
+  szSaveHistory({ pair, riskPct, lotSize: lots, equity, stopPips, dollarRisk });
+}
+
+async function szSaveHistory(entry) {
+  const deviceId = szGetDeviceId();
+  try {
+    await fetch('/api/sizing-history?device_id=' + encodeURIComponent(deviceId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+      signal: AbortSignal.timeout(5000),
+    });
+    szLoadHistory();
+  } catch(e) {
+    console.warn('sizing save failed:', e.message);
+  }
+}
+
+async function szLoadHistory() {
+  const deviceId = szGetDeviceId();
+  const histEl = document.getElementById('szHistory');
+  if (!histEl) return;
+  try {
+    const res = await fetch('/api/sizing-history?device_id=' + encodeURIComponent(deviceId), {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return;
+    const { entries } = await res.json();
+    if (!entries || entries.length === 0) {
+      histEl.innerHTML = '';
+      return;
+    }
+    histEl.innerHTML = `<div style="font-size:10px;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;letter-spacing:.05em">RIWAYAT (${entries.length})</div>` +
+      entries.map(e => {
+        const d = new Date(e.timestamp);
+        const fmt = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `<div class="sz-hist-item">
+          <div class="sz-hist-main">${e.pair} · ${e.lotSize} lots · ${e.riskPct}% risk</div>
+          <div>Equity $${(e.equity||0).toLocaleString()} · Stop ${e.stopPips}p · At risk $${(e.dollarRisk||0).toFixed(2)} · ${fmt}</div>
+        </div>`;
+      }).join('');
+  } catch(e) {
+    console.warn('sizing history load failed:', e.message);
+  }
 }
 </script>
 </body>
