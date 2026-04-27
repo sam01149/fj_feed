@@ -3654,14 +3654,14 @@ async function szLoadHistory() {
   }
 }
 
-// Mobile bottom nav click handler
-document.querySelectorAll('#botNav .bot-nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view;
-    const topBtn = document.querySelector('#navViews .nvtab[data-view="' + view + '"]');
-    if (topBtn) topBtn.click();
-    document.querySelectorAll('#botNav .bot-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  });
+// Mobile bottom nav — use event delegation because #botNav HTML is after this script
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('#botNav .bot-nav-btn');
+  if (!btn) return;
+  const view = btn.dataset.view;
+  const topBtn = document.querySelector('#navViews .nvtab[data-view="' + view + '"]');
+  if (topBtn) topBtn.click();
+  document.querySelectorAll('#botNav .bot-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
 });
 </script>
 
