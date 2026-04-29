@@ -1,6 +1,6 @@
 # DAUN MERAH — PROGRESS & STATUS
 
-> **Last updated:** 2026-04-27
+> **Last updated:** 2026-04-29
 > **Branch:** main
 
 ---
@@ -25,7 +25,9 @@ Task 10e ✅  Prompt Externalization         commit 022dc40
 Task 10f ✅  Health Monitoring              commit 658a1a6
 Task 10g ✅  Redis Key Registry             commit 658a1a6
 Task 10h ✅  Rate Limiting                  commit 658a1a6
+```
 
+```
 [POST-TASK]
 FIX      ✅  Vercel 12-function limit       commit 95db702
 FIX      ✅  Mobile bottom nav + SVG icon   commit 108ffab
@@ -55,6 +57,38 @@ P3-1  ✅  _lastThesis: persist ke localStorage + load saat init (tombol jurnal 
 
 ---
 
+## AI DIGEST QUALITY UPGRADE — 2026-04-29
+
+Fokus: meningkatkan kualitas analisis AI untuk trader XAU/USD + fix UX persistence/cooldown.
+
+```
+PROMPT   ✅  History summary 200→700 chars (FX continuity)
+PROMPT   ✅  CB bias: filtered headlines only (bukan all 80), max_tokens 200→400
+PROMPT   ✅  Trade thesis: calBlock injected, calendar-aware invalidation_condition
+PROMPT   ✅  XAUUSD prompt rewrite total — 3-part structured analysis:
+              (1) driver dominan + bukti konkret, (2) tekanan fundamental, (3) trigger 24h
+              Explicit: no live price, conflict resolution required, "conflicting" hanya jika setara
+PROMPT   ✅  XAUUSD continuity — xauHistoryBlock injected sebagai blok terpisah dari FX history
+DATA     ✅  GOLD_KEYWORDS filter (3 tier: direct/real yield/safe haven) — capped 25 items
+DATA     ✅  goldBlock injected ke Call 1 sebagai blok terpisah "HEADLINE RELEVAN XAUUSD"
+DATA     ✅  FX history disimpan pre-XAUUSD slice (bukan potong 700 chars sembarang)
+DATA     ✅  xau_history Redis key — hanya XAUUSD paragraph (600 chars), 4 sesi, load parallel
+THESIS   ✅  Call 3 extended: 5 field XAU baru + validasi enum (xau_bias, xau_dominant_driver,
+              xau_driver_evidence, xau_key_trigger, xau_confidence)
+THESIS   ✅  briefingForThesis: 900 chars FX + extracted XAUUSD section, overlap guard >900
+THESIS   ✅  max_tokens 300→500, xau_confidence example 1→3, xau_key_trigger fallback option
+PERSIST  ✅  latest_article disimpan ke Redis (EX 21600) setelah setiap generate sukses
+PERSIST  ✅  ?mode=cached endpoint — serve dari Redis tanpa Groq calls (no token cost)
+UX       ✅  loadCachedRingkasan() — auto-fetch cache saat buka tab jika tidak ada in-memory data
+UX       ✅  startCooldown() / tickCooldown() — countdown 90s, persists via localStorage
+UX       ✅  Generate button: "Tunggu Xs" live countdown, re-enables otomatis
+UX       ✅  Meta bar: gold_count display, from_cache indicator, method label "Groq AI"
+```
+
+commit: `28efb84`
+
+---
+
 ## ISSUES YANG MASIH TERBUKA (P1-P3)
 
 ### P1 — Akurasi/Modal
@@ -71,10 +105,11 @@ P3-1  ✅  _lastThesis: persist ke localStorage + load saat init (tombol jurnal 
 ### P3 — Polish
 - [ ] Checklist state per-pair — `ckState` shared; manual items carry over saat ganti pair.
 - [ ] Journal N+1 query — 51 Redis roundtrips untuk 50 entries. Gunakan MGET.
-- [ ] SOP/Petunjuk stale — masih sebut 2 playbook, sekarang ada 4.
+- [ ] SOP/Petunjuk stale — masih sebut 2 playbook, sekarang ada 4. XAUUSD analysis section belum ada.
 - [ ] Push dedup `seen_guids` max 500 — edge case republish FinancialJuice.
 - [ ] `correlations.js` Yahoo Finance fragile — tidak ada User-Agent rotation, tidak ada fallback source.
 - [ ] Manifest icons SVG only — iOS Safari butuh PNG fallback.
+- [ ] Self-maintaining memory — digest_history masih FIFO (LTRIM). Belum ada semantic compression / dedup.
 
 ---
 
@@ -82,5 +117,7 @@ P3-1  ✅  _lastThesis: persist ke localStorage + load saat init (tombol jurnal 
 
 1. **CB rates perlu update manual** — cek ECB April 2026 meeting, BOE update, update `api/cb-status.js` object `CB_DATA`.
 2. **Real yields perlu update manual** — ECB SPF Q2 biasanya release April. Update `api/real-yields.js` jika sudah ada data baru.
-3. **FOMC dates 2027** — `api/rate-path.js` masih punya 2027-04-29 yang spekulatif. Diberi label estimate di kode, tapi verifikasi ketika Fed publish kalender resmi.
+3. **FOMC dates 2027** — `api/rate-path.js` masih punya 2027-04-29 yang spekulatif. Verifikasi ketika Fed publish kalender resmi.
 4. **Pip value calculator** — fix yang proper butuh fetch USD/quote spot untuk cross-pair conversion. Atau batasi calculator ke pairs dengan USD direct dan tampilkan disclaimer untuk yang lain.
+5. **Self-maintaining memory** — sistem saat ini FIFO. Rencana: semantic compression (Groq lightweight call) ketika history penuh, dedup jika narrative sama.
+6. **Groq free tier** — ~7,900 token per digest request. Aman 3–5x/hari. Jika upgrade paid tier, Call 4 terpisah untuk XAU bisa diaktifkan.
