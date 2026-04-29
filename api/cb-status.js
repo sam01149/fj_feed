@@ -2,14 +2,14 @@
 // Returns static CB data merged with latest bias from Redis
 
 const CB_DATA = {
-  USD: { currency:'USD', bank:'Federal Reserve',            short:'Fed',  rate:4.50, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
+  USD: { currency:'USD', bank:'Federal Reserve',            short:'Fed',  rate:3.75, last_meeting:'2026-03-18', last_decision:'hold', last_bps:0   },
   EUR: { currency:'EUR', bank:'European Central Bank',      short:'ECB',  rate:2.15, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
-  GBP: { currency:'GBP', bank:'Bank of England',            short:'BOE',  rate:4.50, last_meeting:'2026-02-06', last_decision:'cut',  last_bps:-25 },
+  GBP: { currency:'GBP', bank:'Bank of England',            short:'BOE',  rate:3.75, last_meeting:'2026-03-18', last_decision:'hold', last_bps:0   },
   JPY: { currency:'JPY', bank:'Bank of Japan',              short:'BOJ',  rate:0.75, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
-  CAD: { currency:'CAD', bank:'Bank of Canada',             short:'BOC',  rate:2.75, last_meeting:'2026-03-12', last_decision:'hold', last_bps:0   },
-  AUD: { currency:'AUD', bank:'Reserve Bank of Australia',  short:'RBA',  rate:4.10, last_meeting:'2026-02-18', last_decision:'cut',  last_bps:-25 },
-  NZD: { currency:'NZD', bank:'Reserve Bank of New Zealand',short:'RBNZ', rate:3.50, last_meeting:'2026-02-19', last_decision:'cut',  last_bps:-50 },
-  CHF: { currency:'CHF', bank:'Swiss National Bank',        short:'SNB',  rate:0.25, last_meeting:'2026-03-20', last_decision:'cut',  last_bps:-25 },
+  CAD: { currency:'CAD', bank:'Bank of Canada',             short:'BOC',  rate:2.25, last_meeting:'2026-03-18', last_decision:'hold', last_bps:0   },
+  AUD: { currency:'AUD', bank:'Reserve Bank of Australia',  short:'RBA',  rate:4.10, last_meeting:'2026-03-17', last_decision:'hike', last_bps:25  },
+  NZD: { currency:'NZD', bank:'Reserve Bank of New Zealand',short:'RBNZ', rate:2.25, last_meeting:'2026-04-09', last_decision:'hold', last_bps:0   },
+  CHF: { currency:'CHF', bank:'Swiss National Bank',        short:'SNB',  rate:0.00, last_meeting:'2026-03-20', last_decision:'hold', last_bps:0   },
 };
 
 async function redisCmd(...args) {
