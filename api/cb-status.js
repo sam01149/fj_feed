@@ -3,9 +3,9 @@
 
 const CB_DATA = {
   USD: { currency:'USD', bank:'Federal Reserve',            short:'Fed',  rate:4.50, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
-  EUR: { currency:'EUR', bank:'European Central Bank',      short:'ECB',  rate:2.40, last_meeting:'2026-03-06', last_decision:'cut',  last_bps:-25 },
+  EUR: { currency:'EUR', bank:'European Central Bank',      short:'ECB',  rate:2.15, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
   GBP: { currency:'GBP', bank:'Bank of England',            short:'BOE',  rate:4.50, last_meeting:'2026-02-06', last_decision:'cut',  last_bps:-25 },
-  JPY: { currency:'JPY', bank:'Bank of Japan',              short:'BOJ',  rate:0.50, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
+  JPY: { currency:'JPY', bank:'Bank of Japan',              short:'BOJ',  rate:0.75, last_meeting:'2026-03-19', last_decision:'hold', last_bps:0   },
   CAD: { currency:'CAD', bank:'Bank of Canada',             short:'BOC',  rate:2.75, last_meeting:'2026-03-12', last_decision:'hold', last_bps:0   },
   AUD: { currency:'AUD', bank:'Reserve Bank of Australia',  short:'RBA',  rate:4.10, last_meeting:'2026-02-18', last_decision:'cut',  last_bps:-25 },
   NZD: { currency:'NZD', bank:'Reserve Bank of New Zealand',short:'RBNZ', rate:3.50, last_meeting:'2026-02-19', last_decision:'cut',  last_bps:-50 },
