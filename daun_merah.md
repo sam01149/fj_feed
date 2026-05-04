@@ -1,6 +1,6 @@
 # Daun Merah — Project Context (Full Reference)
 
-> **Last updated:** 2026-04-27
+> **Last updated:** 2026-05-04
 > **Branch:** main — semua perubahan deployed ke production
 > **Working directory:** `c:\Users\sam\Downloads\Financial_Feed_App`
 > **Production URL:** https://financial-feed-app.vercel.app
@@ -126,7 +126,8 @@ Real yield differential. USD: DGS10 − T10YIE. 7 currencies lain hardcoded infl
 USD rate path **HEURISTIC** (bukan CME FedWatch / market-implied). FRED SOFR/EFFR + step-function probability. UI menampilkan label "Estimasi (bukan probabilitas pasar)". Redis `rate_path` TTL 14400s.
 
 ### `GET /api/correlations`
-Cross-asset Pearson 20d + 60d, 10 instrumen via Yahoo Finance. On-demand via button. Redis `correlations` TTL 86400s. Rate limited: 5/min.
+Cross-asset Pearson 20d + 60d, 12 instrumen via Yahoo Finance. On-demand via button. Redis `correlations_v2` TTL 86400s. Rate limited: 5/min.
+Response fields: `instruments`, `matrix_20d`, `matrix_60d`, `anomalies` (max 10, delta >0.4), `gold_correlations` (Gold vs 10 aset: DXY/Silver/Copper/WTI/US10Y/SPX/VIX/JPY/AUD/EUR — selalu ada, bukan hanya anomali), `computed_at`, `stale`.
 
 ### `POST/GET /api/sizing-history`
 History sizing calculations per device. Redis sorted set `sizing_history:{device_id}`, max 10.
@@ -222,7 +223,7 @@ localStorage keys: `daunmerah_v2` (state), `daun_merah_playbook` (active), `daun
 | `risk_regime` | VIX/MOVE/HY payload | 1800s | `api/risk-regime.js` |
 | `real_yields` | `{currencies:{...}, computed_at}` | 21600s | `api/real-yields.js` |
 | `rate_path` | `{USD:{probHold,...}}` | 14400s | `api/rate-path.js` |
-| `correlations` | Correlation matrix 20d+60d | 86400s | `api/correlations.js` |
+| `correlations_v2` | Correlation matrix 20d+60d + gold_correlations | 86400s | `api/correlations.js` |
 | `health_last_ok` | HSET: source → last OK ISO | no TTL | `api/admin.js` |
 | `sizing_history:{device_id}` | Sorted set sizing calculations | no TTL | `api/sizing-history.js` |
 | `journal:{device_id}:{id}` | Full journal entry JSON | no TTL | `api/journal.js` |
@@ -266,6 +267,9 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 - **rc4 auto-tick false positive** — `ckAutoTickRegimeCheck` compare `ev.impact !== 'high'` (lowercase) tapi API return `'High'` (kapitalized). Dan `ev.datetime` tidak ada — construct dari `ev.date` + `ev.time_wib`. Fix: session 2026-04-27.
 - **convertToWIB UTC offset salah** — ForexFactory XML pakai US/Eastern (EST/EDT), bukan UTC. Comment di code salah. `+7` seharusnya `+12` (EST) atau `+11` (EDT). Semua jam event di tab CAL off ~5 jam. Fix: session 2026-04-27.
 - **rate-path heuristic tidak honest** — UI tampilkan probabilitas hold/cut tanpa label bahwa ini bukan market-implied. Fix: tambah label "Estimasi" di session 2026-04-27.
+- **GOLD_KEYWORDS terlalu sempit** — banyak XAU driver (Fed, real yield, risk sentiment) tidak di-filter ke gold block. Fix: expand keywords + cap goldItems 25→30 (2026-05-04).
+- **USDJPY inconsistent dengan FX lain** — label anomali "USDJPY vs Gold" membingungkan (USDJPY = USD kuat, sedangkan EUR/GBP/AUD = currency kuat). Fix: rename ke JPY + invert 1/close sehingga JPY kuat = naik, konsisten X/USD format (2026-05-04).
+- **Korelasi gold hanya muncul saat anomali** — tidak ada tabel tetap XAU vs Silver/Copper/dll. Fix: tambah `gold_correlations` section di API + UI tabel selalu-tampil (2026-05-04).
 
 ---
 
@@ -278,19 +282,24 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 - **Real yields stale** — `api/real-yields.js` data EUR `as_of` 2026-01-15, sekarang Apr 2026 = ~100 hari. Flag stale lebih visible di UI.
 
 ### P2 — Robustness
-- **digest_history race condition** — multi-tab read-modify-write tanpa atomic. Gunakan LPUSH/LTRIM.
-- **cb_bias race condition** — merge logic `market-digest.js` sama pattern. Gunakan HSET per currency (already atomic) atau lock SETNX.
-- **rate limiter INCR/EXPIRE window** — antara INCR dan EXPIRE ada window orphan key. Gunakan `SET NX EX` / Lua script.
+- **cb_bias race condition** — merge logic `market-digest.js` HGET-merge-HSET tanpa atomic. Gunakan HSET per currency atau lock SETNX.
 - **Groq calls error isolation** — Call 1/2/3 sequential. Jika Call 1 timeout, 2 dan 3 skip. Tidak ada partial response handling.
 - **Service Worker update flow** — tidak ada skipWaiting dengan client notification, tidak ada cache versioning berfungsi.
-- **feeds.js rssMemCache** — `const rssMemCache = { xml: null, fetchedAt: 0 }` module-level. Violates cold-start safe constraint. Redis backup ada tapi behavior unpredictable.
 
 ### P3 — Polish
-- **`_lastThesis` tidak persist** — refresh halaman → `_lastThesis = null` → tombol "Gunakan untuk mulai jurnal" silently fail. Load dari Redis `latest_thesis` saat app init.
 - **Checklist state per-pair** — `ckState` shared semua pair. Manual items (rc5, gates teknikal) carry over saat ganti pair.
 - **Journal N+1 query** — ZRANGE + GET per-id = 51 Redis roundtrips untuk 50 entries. Gunakan MGET.
 - **SOP/Petunjuk stale** — menyebut 2 playbook, sekarang ada 4.
 - **COT column parsing tidak validated** — kolom 4-9 assumed, tidak ada sanity check.
+- **CB rates stale** — `api/cb-status.js` data ECB/BOE/RBA/RBNZ perlu dicek setelah meeting April-Mei 2026.
+- **Real yields stale** — `api/real-yields.js` EUR `as_of` 2026-01-15, >100 hari.
+
+### Fixed (sudah resolved)
+- ✅ P1: `_ratelimit.js` INCR+EXPIRE race → SET NX EX + INCR (2026-04-27)
+- ✅ P1: `subscribe.js` base64 slice collision → SHA-256 full hex (2026-04-27)
+- ✅ P2: `digest_history` GET-push-SET race → LPUSH/LTRIM atomic (2026-04-27)
+- ✅ P2: `feeds.js` rssMemCache module-level var → Redis-only (2026-04-27)
+- ✅ P3: `_lastThesis` persist → localStorage (2026-04-27)
 
 ---
 
