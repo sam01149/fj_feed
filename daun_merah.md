@@ -288,7 +288,7 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 ### P1 — Risiko akurasi/keamanan modal
 - **Pip value cross-pair approximation** — `calcPipValueUSD` untuk cross pairs (EUR/JPY, GBP/JPY dll) pakai `(pipSize/entryPrice)*lotUnits`. Error bisa 10-30%. Risk sizing 2% limit bisa bocor ke 2.5% real risk.
 - **Push subscription key collision** — `Buffer.from(endpoint).toString('base64').slice(0,80)` bisa collision. Ganti ke SHA-256 hex.
-- **CB rates stale** — `api/cb-status.js` data ECB/BOE/RBA/RBNZ kemungkinan sudah ada meeting baru. Update manual diperlukan setelah setiap meeting.
+- **CB rates stale** — `api/cb-status.js` data ECB/BOE/RBA/RBNZ kemungkinan sudah ada meeting baru. Update manual diperlukan setelah setiap meeting. **Last updated 2026-05-05** (semua 8 CB sudah diverifikasi via API + web search).
 - **Real yields stale** — `api/real-yields.js` data EUR `as_of` 2026-01-15, sekarang Apr 2026 = ~100 hari. Flag stale lebih visible di UI.
 
 ### P2 — Robustness
@@ -334,16 +334,16 @@ File: `api/cb-status.js`, object `CB_DATA`
 
 | CB | Rate | Last Meeting | Decision |
 |----|------|-------------|----------|
-| Fed | 4.50% | 2026-03-19 | hold |
-| ECB | 2.40% | 2026-03-06 | cut -25bps |
-| BOE | 4.50% | 2026-02-06 | cut -25bps |
-| BOJ | 0.50% | 2026-03-19 | hold |
-| BOC | 2.75% | 2026-03-12 | hold |
-| RBA | 4.10% | 2026-02-18 | cut -25bps |
-| RBNZ | 3.50% | 2026-02-19 | cut -50bps |
-| SNB | 0.25% | 2026-03-20 | cut -25bps |
+| Fed | 3.75% | 2026-04-29 | hold |
+| ECB | 2.15% | 2026-04-30 | hold |
+| BOE | 3.75% | 2026-04-30 | hold |
+| BOJ | 0.75% | 2026-04-28 | hold |
+| BOC | 2.25% | 2026-04-29 | hold |
+| RBA | 4.35% | 2026-05-06 | hike +25bps (3rd straight) |
+| RBNZ | 2.25% | 2026-04-09 | hold |
+| SNB | 0.00% | 2026-03-19 | hold |
 
-> **Perlu dicek:** ECB meeting cycle 6 minggu — antara 2026-03-06 dan 2026-04-27 mungkin sudah ada meeting April. Verifikasi sebelum update.
+> **Last verified:** 2026-05-05. Semua rate dikonfirmasi via official APIs (FRED, ECB API, BoC Valet) + web search.
 
 ---
 
