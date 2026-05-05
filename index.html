@@ -1908,18 +1908,24 @@ function setStatus(state, text) {
 }
 
 // ── AUTO REFRESH ─────────────────────────────────────────
+function startAutoRefresh() {
+  const cd = document.getElementById('cdText');
+  cdVal = 60; cd.textContent = '60s';
+  clearInterval(autoInterval); clearInterval(cdInterval);
+  autoInterval = setInterval(() => { fetchFeed(); cdVal=60; }, 60000);
+  cdInterval   = setInterval(() => { cdVal--; cd.textContent=cdVal+'s'; if(cdVal<=0)cdVal=60; }, 1000);
+  sendToSW({ type:'CHECK_NOW' });
+}
+
+function stopAutoRefresh() {
+  clearInterval(autoInterval); clearInterval(cdInterval);
+  document.getElementById('cdText').textContent = '';
+}
+
 function toggleAuto() {
   const on = document.getElementById('autoToggle').checked;
-  const cd = document.getElementById('cdText');
-  if (on) {
-    cdVal = 60; cd.textContent = '60s';
-    autoInterval = setInterval(() => { fetchFeed(); cdVal=60; }, 60000);
-    cdInterval   = setInterval(() => { cdVal--; cd.textContent=cdVal+'s'; if(cdVal<=0)cdVal=60; }, 1000);
-    sendToSW({ type:'CHECK_NOW' });
-  } else {
-    clearInterval(autoInterval); clearInterval(cdInterval);
-    cd.textContent = '';
-  }
+  localStorage.setItem('autoRefreshOn', on ? '1' : '0');
+  if (on) startAutoRefresh(); else stopAutoRefresh();
 }
 
 // ── TOAST ────────────────────────────────────────────────
@@ -2801,11 +2807,35 @@ window.addEventListener('load', () => {
     notifEnabled = true;
     document.getElementById('notifBtn').classList.add('enabled');
   }
+  // Restore AUTO toggle state from localStorage (survives tab reload)
+  if (localStorage.getItem('autoRefreshOn') === '1') {
+    document.getElementById('autoToggle').checked = true;
+    startAutoRefresh();
+  }
   setTimeout(fetchFeed, 400);
   setTimeout(fetchRegime, 800);
   setTimeout(fetchRealYields, 1200);
   setInterval(fetchRegime, 15 * 60 * 1000);
   setInterval(updateCalLastUpdated, 60 * 1000);
+});
+
+// Restart auto-refresh intervals when tab becomes visible again (fixes background throttle)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    const toggle = document.getElementById('autoToggle');
+    if (toggle && toggle.checked) {
+      startAutoRefresh();
+      fetchFeed();
+    }
+  }
+});
+
+// Restore state after bfcache restore (browser back/forward navigation)
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && localStorage.getItem('autoRefreshOn') === '1') {
+    document.getElementById('autoToggle').checked = true;
+    startAutoRefresh();
+  }
 });
 
 // ── CHECKLIST ─────────────────────────────────────────────
