@@ -23,7 +23,7 @@ Daun Merah adalah forex news PWA (Progressive Web App) untuk trader forex Indone
 | Backend | Vercel Serverless Functions (Node.js, CommonJS `module.exports`) |
 | AI | Groq API — model `llama-3.3-70b-versatile` |
 | Cache/DB | Upstash Redis REST API |
-| RSS sumber berita | FinancialJuice (`https://www.financialjuice.com/feed.ashx?xy=rss`) |
+| RSS sumber berita | FinancialJuice (`https://www.financialjuice.com/feed.ashx?xy=rss`) — satu-satunya sumber (Nitter dihapus 2026-05-05) |
 | Kalender ekonomi | ForexFactory XML (`nfs.faireconomy.media`) |
 | COT data | CFTC website scraping (`cftc.gov`) |
 | Font | Syne (heading), DM Mono (body) |
@@ -77,6 +77,7 @@ Financial_Feed_App/
 
 ### `GET /api/feeds?type=rss`
 Proxy RSS FinancialJuice. Redis `rss_cache` TTL 60s. Header `X-Cache-Source: REDIS/UPSTREAM/STALE`.
+> Nitter (`?type=nitter`) sudah dihapus — semua instance return body kosong sejak X/Twitter blokir scraping.
 
 ### `GET /api/feeds?type=cot`
 Scrape CFTC, parse Leveraged Funds + Asset Manager positions. Redis `cot_cache_v2` TTL 6 jam. Fallback ke stale jika parsed currencies < 5.
@@ -277,7 +278,8 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 - **Petunjuk SOP stale** — step 2.3 hanya sebut 2 dari 4 playbook; tidak ada langkah korelasi. Fix: update step 2.3 + tambah step 1.5 Cross-Asset Correlations (2026-05-04).
 - **AUTO refresh hilang setelah pindah tab** — browser mobile (iOS Safari, Chrome Android) bisa discard tab background → halaman reload → `autoToggle` reset ke off, interval hilang. Fix: simpan state ke `localStorage` + restore di `load` handler + `visibilitychange` listener restart interval saat tab aktif lagi + `pageshow` handler untuk bfcache restore (2026-05-05).
 - **Ringkasan XAU/USD kehilangan konteks NY session** — `market-digest.js` hanya pakai 12 jam RSS window. Saat London session, berita NY session sebelumnya (20:00–03:00 WIB) sudah di luar window. Fix: `feeds.js` simpan item RSS ke Redis Sorted Set `news_history` (36h rolling, ZADD NX + ZREMRANGEBYSCORE auto-prune, throttle 5 menit via `news_history_lock` SET NX EX 300). `market-digest.js` baca `ZRANGEBYSCORE` paralel dengan RSS live (hard timeout 3s via Promise.race), merge + dedup by GUID. Gold block di-split jadi `[12 JAM TERAKHIR]` + `[KONTEKS HISTORIS 12-36 JAM LALU]` agar Groq bisa weight berita dengan tepat. Prompt Groq sekarang include nama hari (dayStr) + catatan otomatis Senin pagi untuk konteks volume weekend tipis (2026-05-05).
-- **Berita duplikat + jadi 200 saat kembali dari background** — dua root cause: (1) GUID Nitter pakai raw `<guid>` dari RSS instance yang berbeda (`nitter.net` vs `nitter.privacydev.net`) → tweet yang sama dapat GUID berbeda → dianggap item baru → duplikat. (2) `handleNewItems` selalu append ke `allItems` → kalau banyak GUID "baru" (karena instance rotation), `allItems` bisa melebar sampai 200. (3) Tidak ada guard concurrent `fetchFeed()` → `visibilitychange` + `window.load` bisa trigger dua fetch bersamaan. Fix: (1) GUID Nitter pakai normalized `x.com` link bukan raw `<guid>`. (2) `fetchFeed` diganti full merge-dedup via `Map<guid, item>` + slice ke 100 (bukan 200). (3) `isFetching` flag guard — fetch kedua langsung return. `handleNewItems` dihapus, logic toast dipindah inline. (2026-05-05).
+- **Berita duplikat + jadi 200 saat kembali dari background** — (1) `handleNewItems` selalu append → `allItems` bisa melebar sampai 200 kalau banyak GUID "baru". (2) Tidak ada guard concurrent `fetchFeed()` → `visibilitychange` + `window.load` trigger dua fetch bersamaan. Fix: `fetchFeed` diganti full merge-dedup via `Map<guid, item>` + slice ke 100. `isFetching` flag guard — fetch kedua langsung return. `handleNewItems` dihapus. (2026-05-05).
+- **Nitter (@DeItaone) tidak mengirim berita apapun** — semua instance (`nitter.net`, `nitter.privacydev.net`, `nitter.poast.org`) return HTTP 200 body kosong karena X/Twitter memblokir scraping. Fix: hapus seluruh Nitter dari frontend + backend (`fetchNitter`, `parseNitterRSS`, `nitterHandler`, `FETCH_NITTER_URL`, `NITTER_INSTANCES`). Sumber berita sekarang hanya FinancialJuice RSS. (2026-05-05).
 
 ---
 

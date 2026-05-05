@@ -1,14 +1,12 @@
 // api/feeds.js — consolidated feeds endpoint
-// GET /api/feeds?type=rss     → FinancialJuice RSS XML (50s cache)
-// GET /api/feeds?type=nitter  → @DeItaone via Nitter RSS (60s cache)
-// GET /api/feeds?type=cot     → CFTC COT JSON (6h cache)
+// GET /api/feeds?type=rss → FinancialJuice RSS XML (50s cache)
+// GET /api/feeds?type=cot → CFTC COT JSON (6h cache)
 
 module.exports = async function handler(req, res) {
   const type = req.query.type;
-  if (type === 'rss')    return rssHandler(req, res);
-  if (type === 'nitter') return nitterHandler(req, res);
-  if (type === 'cot')    return cotHandler(req, res);
-  return res.status(400).json({ error: 'Missing ?type= — use rss, nitter, or cot' });
+  if (type === 'rss') return rssHandler(req, res);
+  if (type === 'cot') return cotHandler(req, res);
+  return res.status(400).json({ error: 'Missing ?type= — use rss or cot' });
 };
 
 // ── Shared Redis helper ────────────────────────────────────────────────────────
@@ -122,71 +120,6 @@ function parseRSSItems(xml) {
     if (guid && title) items.push({ title, guid, pubDate, link });
   }
   return items;
-}
-
-// ── Nitter handler (@DeItaone) ────────────────────────────────────────────────
-
-const NITTER_INSTANCES = [
-  'https://nitter.net/DeItaone/rss',
-  'https://nitter.privacydev.net/DeItaone/rss',
-  'https://nitter.poast.org/DeItaone/rss',
-];
-const NITTER_CACHE_KEY    = 'nitter_deltaone_v1';
-const NITTER_CACHE_TTL_MS = 60 * 1000;
-
-async function nitterHandler(req, res) {
-  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
-  const now = Date.now();
-
-  try {
-    const cached = await redisCmd('GET', NITTER_CACHE_KEY);
-    if (cached) {
-      const obj = JSON.parse(cached);
-      if (now - obj.fetchedAt < NITTER_CACHE_TTL_MS) {
-        res.setHeader('X-Cache-Source', 'REDIS');
-        return res.status(200).send(obj.xml);
-      }
-    }
-  } catch(e) { console.warn('Nitter Redis GET failed:', e.message); }
-
-  let xml = null, lastError = null;
-
-  for (const url of NITTER_INSTANCES) {
-    try {
-      const r = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; FeedFetcher/1.0)',
-          'Accept': 'application/rss+xml, application/xml, */*',
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (r.ok) {
-        const t = await r.text();
-        if (t.includes('<rss') || t.includes('<feed')) { xml = t; break; }
-        lastError = 'NOT_RSS from ' + url;
-      } else {
-        lastError = 'HTTP_' + r.status + ' from ' + url;
-      }
-    } catch(e) { lastError = e.message + ' from ' + url; }
-  }
-
-  if (!xml) {
-    try {
-      const stale = await redisCmd('GET', NITTER_CACHE_KEY);
-      if (stale) {
-        res.setHeader('X-Cache-Source', 'STALE');
-        return res.status(200).send(JSON.parse(stale).xml);
-      }
-    } catch(e2) {}
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(502).json({ error: 'Nitter unavailable', detail: lastError });
-  }
-
-  redisCmd('SET', NITTER_CACHE_KEY, JSON.stringify({ xml, fetchedAt: now }), 'EX', 120).catch(() => {});
-  res.setHeader('X-Cache-Source', 'UPSTREAM');
-  return res.status(200).send(xml);
 }
 
 // ── COT handler (was api/cot.js) ──────────────────────────────────────────────

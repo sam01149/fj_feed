@@ -1517,8 +1517,7 @@ body {
 </div>
 
 <script>
-const FETCH_URL        = '/api/feeds?type=rss';
-const FETCH_NITTER_URL = '/api/feeds?type=nitter';
+const FETCH_URL = '/api/feeds?type=rss';
 
 const CATS = {
   'market-moving': ['market moving','breaking','flash','urgent','alert','war','blockade'],
@@ -1728,16 +1727,6 @@ async function fetchRSS() {
   return null;
 }
 
-async function fetchNitter() {
-  try {
-    const c = new AbortController();
-    setTimeout(() => c.abort(), 12000);
-    const r = await fetch(FETCH_NITTER_URL, { signal: c.signal });
-    if (r.ok) { const t = await r.text(); if (t.includes('<rss') || t.includes('<feed')) return t; }
-  } catch(e) {}
-  return null;
-}
-
 function parseRSS(xml) {
   const items = [];
   const re = /<item>([\s\S]*?)<\/item>/g;
@@ -1759,32 +1748,6 @@ function parseRSS(xml) {
   return items;
 }
 
-function parseNitterRSS(xml) {
-  const items = [];
-  const re = /<item>([\s\S]*?)<\/item>/g;
-  let m;
-  while ((m = re.exec(xml)) !== null) {
-    const b = m[1];
-    const get = (tag) => {
-      const r1 = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`).exec(b);
-      const r2 = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`).exec(b);
-      return (r1||r2)?.[1]?.trim() || '';
-    };
-    let title = get('title')
-      .replace(/^R to @\w+:\s*/i, '')
-      .replace(/^@DeItaone:\s*/i, '')
-      .trim();
-    const pubDate = get('pubDate');
-    // Rewrite nitter links → x.com (for both display link and GUID normalization)
-    const rawLink = b.match(/<link>(.*?)<\/link>/)?.[1] || '';
-    const link    = rawLink.replace(/https?:\/\/[^/]*nitter[^/]*/i, 'https://x.com');
-    const desc    = get('description');
-    // Use normalized x.com link as GUID — avoids duplicates when different Nitter instances are used
-    if (link && title) items.push({ title, guid: 'x_' + link, pubDate, link, desc, source: 'x' });
-  }
-  return items;
-}
-
 async function fetchFeed() {
   if (isFetching) return;
   isFetching = true;
@@ -1792,7 +1755,7 @@ async function fetchFeed() {
   btn.classList.add('spinning');
   setStatus('loading','FETCHING');
 
-  const [xml, nitterXml] = await Promise.all([fetchRSS(), fetchNitter()]);
+  const xml = await fetchRSS();
 
   btn.classList.remove('spinning');
   if (!xml) {
@@ -1807,9 +1770,7 @@ async function fetchFeed() {
     return;
   }
 
-  const fjItems = parseRSS(xml);
-  const xItems  = nitterXml ? parseNitterRSS(nitterXml) : [];
-  const merged  = [...fjItems, ...xItems].sort((a, b) =>
+  const merged = parseRSS(xml).sort((a, b) =>
     new Date(b.pubDate) - new Date(a.pubDate)
   );
 
