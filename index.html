@@ -1559,6 +1559,7 @@ function detectCat(title) {
 let allItems     = [];
 let seenGuids    = new Set();
 let activeFilter = 'all';
+let isFetching   = false;
 let autoInterval = null;
 let cdInterval   = null;
 let cdVal        = 60;
@@ -1773,32 +1774,20 @@ function parseNitterRSS(xml) {
       .replace(/^R to @\w+:\s*/i, '')
       .replace(/^@DeItaone:\s*/i, '')
       .trim();
-    const guid    = get('guid') || get('link');
     const pubDate = get('pubDate');
-    // Rewrite nitter.net links → twitter.com
+    // Rewrite nitter links → x.com (for both display link and GUID normalization)
     const rawLink = b.match(/<link>(.*?)<\/link>/)?.[1] || '';
     const link    = rawLink.replace(/https?:\/\/[^/]*nitter[^/]*/i, 'https://x.com');
     const desc    = get('description');
-    if (guid && title) items.push({ title, guid: 'x_' + guid, pubDate, link, desc, source: 'x' });
+    // Use normalized x.com link as GUID — avoids duplicates when different Nitter instances are used
+    if (link && title) items.push({ title, guid: 'x_' + link, pubDate, link, desc, source: 'x' });
   }
   return items;
 }
 
-function handleNewItems(newItems) {
-  allItems = [...newItems, ...allItems]
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 200);
-  newItems.forEach(i => seenGuids.add(i.guid));
-  updateStats();
-  renderFeed(true);
-  if (newItems.length === 1) {
-    showToast(`📰 ${detectCat(newItems[0].title).replace('-',' ').toUpperCase()}`, newItems[0].title, 4000);
-  } else if (newItems.length > 1) {
-    showToast(`📰 ${newItems.length} berita baru`, newItems.map(i=>i.title).slice(0,2).join(' / '), 4000);
-  }
-}
-
 async function fetchFeed() {
+  if (isFetching) return;
+  isFetching = true;
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spinning');
   setStatus('loading','FETCHING');
@@ -1807,6 +1796,7 @@ async function fetchFeed() {
 
   btn.classList.remove('spinning');
   if (!xml) {
+    isFetching = false;
     setStatus('error','FAILED');
     if (allItems.length === 0) {
       document.getElementById('feedScroll').innerHTML = `
@@ -1819,25 +1809,38 @@ async function fetchFeed() {
 
   const fjItems = parseRSS(xml);
   const xItems  = nitterXml ? parseNitterRSS(nitterXml) : [];
-  // Merge and sort by pubDate descending
   const merged  = [...fjItems, ...xItems].sort((a, b) =>
     new Date(b.pubDate) - new Date(a.pubDate)
   );
 
-  if (seenGuids.size === 0) {
-    allItems = merged;
-    merged.forEach(i => seenGuids.add(i.guid));
-    sendToSW({ type:'INIT_GUIDS', guids:[...seenGuids] });
-  } else {
-    const newItems = merged.filter(i => !seenGuids.has(i.guid));
-    if (newItems.length > 0) handleNewItems(newItems);
-  }
+  // Detect new items for toast (before updating seenGuids)
+  const isFirstLoad = seenGuids.size === 0;
+  const newItems = isFirstLoad ? [] : merged.filter(i => !seenGuids.has(i.guid));
+
+  // Full merge-dedup: start from existing items, override/add from fresh RSS
+  // This prevents accumulation when GUIDs rotate across background periods
+  const byGuid = new Map(allItems.map(i => [i.guid, i]));
+  for (const item of merged) byGuid.set(item.guid, item);
+  allItems = [...byGuid.values()]
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+    .slice(0, 100);
+  seenGuids = new Set(allItems.map(i => i.guid));
+  sendToSW({ type:'INIT_GUIDS', guids:[...seenGuids] });
+
   const now = new Date();
   document.getElementById('lastUpdate').textContent =
     `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} WIB`;
   setStatus('live','LIVE');
   updateStats();
-  renderFeed();
+  renderFeed(!isFirstLoad && newItems.length > 0);
+
+  if (!isFirstLoad && newItems.length === 1) {
+    showToast(`📰 ${detectCat(newItems[0].title).replace('-',' ').toUpperCase()}`, newItems[0].title, 4000);
+  } else if (!isFirstLoad && newItems.length > 1) {
+    showToast(`📰 ${newItems.length} berita baru`, newItems.map(i=>i.title).slice(0,2).join(' / '), 4000);
+  }
+
+  isFetching = false;
 }
 
 // ── RENDER ───────────────────────────────────────────────
