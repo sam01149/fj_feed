@@ -95,6 +95,10 @@ async function rssHandler(req, res) {
 }
 
 async function storeNewsHistory(xml, now) {
+  // Throttle: max once per 5 minutes to keep Upstash command usage low
+  const lock = await redisCmd('SET', 'news_history_lock', '1', 'EX', 300, 'NX');
+  if (!lock) return;
+
   const items = parseRSSItems(xml);
   if (items.length === 0) return;
   const cutoff = now - 36 * 60 * 60 * 1000;

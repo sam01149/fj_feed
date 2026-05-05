@@ -61,9 +61,10 @@ module.exports = async function handler(req, res) {
     const host = req.headers.host || 'financial-feed-app.vercel.app';
     const proto = host.includes('localhost') ? 'http' : 'https';
     const cutoff36h = Date.now() - 36 * 60 * 60 * 1000;
+    const histTimeout = new Promise(resolve => setTimeout(() => resolve(null), 3000));
     const [rssRes, histRaw] = await Promise.allSettled([
       fetch(`${proto}://${host}/api/feeds?type=rss`, { signal: AbortSignal.timeout(12000) }),
-      redisCmd('ZRANGEBYSCORE', 'news_history', cutoff36h, '+inf'),
+      Promise.race([redisCmd('ZRANGEBYSCORE', 'news_history', cutoff36h, '+inf'), histTimeout]),
     ]);
 
     let currentItems = [];
@@ -119,18 +120,28 @@ module.exports = async function handler(req, res) {
   const wibNow  = new Date(Date.now() + 7 * 3600000);
   const dateStr = `${String(wibNow.getUTCDate()).padStart(2,'0')}/${String(wibNow.getUTCMonth()+1).padStart(2,'0')}/${wibNow.getUTCFullYear()}`;
   const timeStr = `${String(wibNow.getUTCHours()).padStart(2,'0')}:${String(wibNow.getUTCMinutes()).padStart(2,'0')} WIB`;
+  const DAYS_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const dayStr  = DAYS_ID[wibNow.getUTCDay()];
+  const isMonEarly = wibNow.getUTCDay() === 1 && wibNow.getUTCHours() < 15;
+  const weekendNote = isMonEarly ? '\nCATATAN KONTEKS: Ini Senin pagi — bagian "12-36 jam lalu" mencakup weekend, volume berita tipis, tidak market-moving.' : '';
   const headlinesForBriefing = recentItems.slice(0, 80);
   const headlinesBlock = headlinesForBriefing.length > 0 ? headlinesForBriefing.map((i,idx)=>`${idx+1}. ${i.title}`).join('\n') : '(Tidak ada headline)';
   const calBlock = calEvents.length > 0 ? calEvents.map(e=>`- ${e.date} | ${e.time_wib} | ${e.currency} | ${e.event}`).join('\n') : '(Tidak ada event high-impact)';
 
-  // Gold-specific headline filter — injected as dedicated block for XAUUSD analysis
-  const goldItems = recentItems.filter(i => {
-    const lower = i.title.toLowerCase();
-    return GOLD_KEYWORDS.some(kw => lower.includes(kw));
-  }).slice(0, 30);
-  const goldBlock = goldItems.length > 0
-    ? goldItems.map((i, idx) => `${idx + 1}. ${i.title}`).join('\n')
-    : '(Tidak ada headline relevan untuk XAU/USD dalam 36 jam terakhir)';
+  // Gold-specific headline filter — split recent vs historical so Groq weights correctly
+  const cutoff12h = Date.now() - 12 * 60 * 60 * 1000;
+  const isGold = i => GOLD_KEYWORDS.some(kw => i.title.toLowerCase().includes(kw));
+  const goldRecent = recentItems.filter(i => isGold(i) && new Date(i.pubDate).getTime() > cutoff12h).slice(0, 20);
+  const goldOlder  = recentItems.filter(i => isGold(i) && new Date(i.pubDate).getTime() <= cutoff12h).slice(0, 15);
+  const goldItems  = [...goldRecent, ...goldOlder];
+  const goldBlock  = [
+    goldRecent.length > 0
+      ? `[12 JAM TERAKHIR — ${goldRecent.length} berita]\n${goldRecent.map((i,idx)=>`${idx+1}. ${i.title}`).join('\n')}`
+      : '[12 JAM TERAKHIR] (tidak ada)',
+    goldOlder.length > 0
+      ? `\n[KONTEKS HISTORIS 12-36 JAM LALU — ${goldOlder.length} berita]\n${goldOlder.map((i,idx)=>`${idx+1}. ${i.title}`).join('\n')}`
+      : '\n[KONTEKS HISTORIS 12-36 JAM LALU] (tidak ada)',
+  ].join('');
 
   // 3b. Load digest history + xau history in parallel
   let digestHistory = [], xauHistory = [];
@@ -206,7 +217,7 @@ ATURAN HIGIENIS:
     const digestInstr = promptDigestInstr || DIGEST_INSTR_DEFAULT;
     const prompt = `${digestInstr}
 
-WAKTU SAAT INI: ${dateStr}, ${timeStr}
+WAKTU SAAT INI: ${dayStr}, ${dateStr}, ${timeStr}${weekendNote}
 
 === HEADLINE BERITA TERKINI (${headlinesForBriefing.length} dari ${recentItems.length} berita, 36 jam terakhir) ===
 ${headlinesBlock}
