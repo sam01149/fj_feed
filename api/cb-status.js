@@ -122,11 +122,12 @@ async function scrapeJPY() {
   return { rate, date: null };
 }
 
-// CAD: Bank of Canada Valet API – Overnight Rate (free, no key)
+// CAD: Bank of Canada Valet API – Target Overnight Rate (V39079, free, no key)
+// V80691311 was the overnight market financing rate (~4.45%), NOT the policy target
 async function scrapeCAD() {
-  const json = await getJson('https://www.bankofcanada.ca/valet/observations/V80691311/json?recent=1');
+  const json = await getJson('https://www.bankofcanada.ca/valet/observations/V39079/json?recent=1');
   const obs  = json.observations?.[0];
-  const rate = parseFloat(obs?.V80691311?.v);
+  const rate = parseFloat(obs?.V39079?.v);
   if (isNaN(rate)) throw new Error('CAD: NaN');
   return { rate, date: obs?.d || null };
 }
@@ -144,11 +145,13 @@ async function scrapeAUD() {
 }
 
 // NZD: Reserve Bank of New Zealand – OCR page
+// NOTE: [^<]{0,60} must be non-greedy ({0,60}?) — greedy version consumes digits
+// e.g. "OCR at 2.25%" → greedy matches "OCR at 2.2" then captures "5" (wrong!)
 async function scrapeNZD() {
   const html = await getText('https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate');
-  const m = html.match(/OCR[^<]{0,60}([\d.]+)\s*(?:per cent|%)/i)
-         || html.match(/official cash rate[^<]{0,80}([\d.]+)\s*(?:per cent|%)/i)
-         || html.match(/([\d.]+)\s*per cent[^<]{0,80}OCR/i);
+  const m = html.match(/OCR[^<]{0,60}?([\d]+\.[\d]+)\s*(?:per cent|%)/i)
+         || html.match(/official cash rate[^<]{0,80}?([\d]+\.[\d]+)\s*(?:per cent|%)/i)
+         || html.match(/([\d]+\.[\d]+)\s*per cent[^<]{0,80}OCR/i);
   if (!m) throw new Error('NZD: pattern not found');
   const rate = parseFloat(m[1]);
   if (isNaN(rate)) throw new Error('NZD: NaN');
