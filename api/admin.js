@@ -10,7 +10,8 @@
 //   /api/health → /api/admin?action=health
 //   /api/push   → /api/admin?action=push
 
-const webpush = require('web-push');
+const webpush  = require('web-push');
+const PUSH_KW  = require('./_push_keywords');
 
 module.exports = async function handler(req, res) {
   const action = req.query.action;
@@ -505,11 +506,11 @@ function parsePushRSS(xml) {
 
 function detectPushCat(t) {
   t = t.toLowerCase();
-  if (['market moving', 'breaking', 'blockade', 'flash crash', 'circuit breaker', 'trading halt', 'market halt'].some(k => t.includes(k))) return 'market-moving';
-  if (['eur/', 'gbp/', 'usd/', 'aud/', 'nzd/', 'cad/', 'chf/', 'jpy/', '/usd', '/jpy', 'dxy', 'loonie', 'aussie', 'cable', 'kiwi', 'sterling', 'greenback', 'dollar index', 'yuan', 'renminbi', 'dollar rallies', 'dollar drops', 'dollar falls', 'dollar rises', 'dollar weakens', 'dollar strengthens', 'fx market', 'forex market', 'currency pair'].some(k => t.includes(k))) return 'forex';
-  if (['oil', 'crude', 'brent', 'wti', 'natural gas', 'hormuz', 'iea', 'opec', 'lng', 'gasoline', 'petroleum', 'refinery', 'pipeline'].some(k => t.includes(k))) return 'energy';
-  if (['fed ', 'fomc', 'powell', 'federal reserve', 'rate cut', 'rate hike', 'ecb', 'boe', 'boj', 'pboc', 'rba', 'rbnz', 'snb', 'norges bank', 'riksbank', 'interest rate', 'monetary policy', 'central bank', 'lagarde', 'bailey', 'ueda', 'bullock'].some(k => t.includes(k))) return 'macro';
-  if (['iran', 'israel', 'russia', 'ukraine', 'china', 'trump', 'nato', 'war', 'tariff', 'taiwan', 'north korea', 'sanctions', 'middle east', 'trade deal', 'trade war', 'g7', 'g20'].some(k => t.includes(k))) return 'geopolitical';
-  if (['actual', 'forecast', 'previous', 'cpi', 'nfp', 'unemployment', 'gdp', 'pmi', 'retail sales', 'payroll', 'jobless', 'pce', 'core inflation', 'trade balance', 'housing starts', 'durable goods', 'ism ', 'jobs report'].some(k => t.includes(k))) return 'econ-data';
+  if (PUSH_KW.MARKET_MOVING.some(k => t.includes(k))) return 'market-moving';
+  if (PUSH_KW.FOREX.some(k => t.includes(k)))         return 'forex';
+  if (PUSH_KW.ENERGY.some(k => t.includes(k)))        return 'energy';
+  if (PUSH_KW.MACRO.some(k => t.includes(k)))         return 'macro';
+  if (PUSH_KW.GEOPOLITICAL.some(k => t.includes(k)))  return 'geopolitical';
+  if (PUSH_KW.ECON_DATA.some(k => t.includes(k)))     return 'econ-data';
   return 'news';
 }
