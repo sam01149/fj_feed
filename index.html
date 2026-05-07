@@ -1742,7 +1742,7 @@ function parseRSS(xml) {
     const pubDate = get('pubDate');
     const link  = b.match(/<link>(.*?)<\/link>/)?.[1] || '';
     const desc  = get('description');
-    if (guid && title && !/interest rate probabilities/i.test(title)) items.push({ title, guid, pubDate, link, desc, source: 'fj' });
+    if (guid && title) items.push({ title, guid, pubDate, link, desc, source: 'fj' });
   }
   return items;
 }
