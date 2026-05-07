@@ -323,6 +323,7 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 - ✅ Push kategori: keyword diperluas + false-positive dibersihkan, dipindah ke `api/_push_keywords.js` (2026-05-06)
 - ✅ Swipe gesture navigasi tab (touchstart/touchend, threshold 60px horizontal, filter nav/input area) (2026-05-07)
 - ✅ Hapus badge sumber "FJ" dari news feed — semua berita dari satu sumber (FinancialJuice), badge tidak informatif (2026-05-07)
+- ✅ Filter item "X Interest Rate Probabilities" dari feed — FJ RSS tidak menyertakan angka aktual, hanya judul tanpa isi (2026-05-07)
 
 ---
 
