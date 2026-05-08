@@ -79,7 +79,7 @@ Hanya FF medium + high impact. Fokus pada yang paling sering muncul:
 
 ---
 
-## Countdown Timer Event Berikutnya (belum diimplementasi)
+## Countdown Timer Event Berikutnya ✅ (diimplementasi 2026-05-08)
 
 ### Tujuan
 Tampilkan countdown ke high-impact economic event terdekat agar trader tidak tertangkap posisi saat rilis data.
@@ -102,4 +102,4 @@ Tampilkan countdown ke high-impact economic event terdekat agar trader tidak ter
 - Tidak ada Redis write tambahan
 - Harus handle kasus `time_wib = 'Tentative'` (skip event tersebut)
 
-**Status:** Disetujui — belum diimplementasi.
+**Status:** ✅ Diimplementasi. Kartu countdown di atas kalender + badge '!' merah di tab header CAL saat event dalam 30 menit.
