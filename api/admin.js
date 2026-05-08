@@ -22,7 +22,8 @@ module.exports = async function handler(req, res) {
   if (action === 'fundamental_get')     return fundamentalGetHandler(req, res);
   if (action === 'fundamental_seed')    return fundamentalSeedHandler(req, res);
   if (action === 'fundamental_analysis') return fundamentalAnalysisHandler(req, res);
-  return res.status(400).json({ error: 'Missing ?action= — use health, redis-keys, admin-prompts, push, fundamental_get, fundamental_seed, or fundamental_analysis' });
+  if (action === 'journal_import')      return journalImportHandler(req, res);
+  return res.status(400).json({ error: 'Missing ?action= — use health, redis-keys, admin-prompts, push, fundamental_get, fundamental_seed, fundamental_analysis, or journal_import' });
 };
 
 // ── Shared Redis helper ────────────────────────────────────────────────────────
@@ -741,4 +742,63 @@ DIVERGENSI TERBESAR: [currency A] vs [currency B]
     console.warn('fundamental_analysis Groq failed:', e.message);
     return res.status(500).json({ error: e.message });
   }
+}
+
+// ── Journal Import ─────────────────────────────────────────────────────────────
+// POST /api/admin?action=journal_import
+// Body: { device_id, entries: [...] }
+// Accepts original created_at / closed_at timestamps (preserves trade history order)
+
+async function journalImportHandler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  const secret = req.headers['x-admin-secret'] || req.headers['x-cron-secret'];
+  if (secret !== process.env.CRON_SECRET) return res.status(403).json({ error: 'Forbidden' });
+
+  let body = '';
+  await new Promise(r => { req.on('data', c => body += c); req.on('end', r); });
+  let parsed;
+  try { parsed = JSON.parse(body); } catch(e) { return res.status(400).json({ error: 'Invalid JSON' }); }
+
+  const { device_id, entries } = parsed;
+  if (!device_id || !Array.isArray(entries) || entries.length === 0)
+    return res.status(400).json({ error: 'device_id and entries[] required' });
+
+  const indexKey = `journal_index:${device_id}`;
+  let imported = 0;
+
+  for (const data of entries) {
+    const id  = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const createdAt = data.created_at || new Date().toISOString();
+    const score     = new Date(createdAt).getTime();
+
+    const entry = {
+      id, device_id,
+      created_at:        createdAt,
+      pair:              data.pair              || '',
+      direction:         data.direction         || '',
+      regime_at_entry:   null,
+      thesis_text:       data.thesis_text       || '',
+      driver_references: [],
+      cb_bias_snapshot:  null,
+      cot_snapshot:      null,
+      entry_price:       data.entry_price  != null ? parseFloat(data.entry_price)  : null,
+      stop_price:        data.stop_price   != null ? parseFloat(data.stop_price)   : null,
+      target_price:      data.target_price != null ? parseFloat(data.target_price) : null,
+      size_lots:         data.size_lots    != null ? parseFloat(data.size_lots)    : null,
+      rr_planned:        data.rr_planned   != null ? parseFloat(data.rr_planned)   : null,
+      time_horizon:      data.time_horizon  || '',
+      status:            data.status        || 'closed',
+      exit_price:        data.exit_price   != null ? parseFloat(data.exit_price)   : null,
+      exit_reason:       data.exit_reason   || null,
+      r_actual:          data.r_actual     != null ? parseFloat(data.r_actual)     : null,
+      attribution_notes: data.attribution_notes || null,
+      closed_at:         data.closed_at     || null,
+    };
+
+    await redisCmd('SET', `journal:${device_id}:${id}`, JSON.stringify(entry));
+    await redisCmd('ZADD', indexKey, score, id);
+    imported++;
+  }
+
+  return res.status(200).json({ ok: true, imported });
 }
