@@ -69,7 +69,7 @@ Tampilkan countdown ke high-impact economic event terdekat agar trader tidak ter
 
 ---
 
-## Economic Fundamental Tracker (belum diimplementasi)
+## Economic Fundamental Tracker ✅ (diimplementasi 2026-05-08)
 
 ### Tujuan
 Dua tujuan utama:
@@ -346,6 +346,6 @@ GET  /api/admin?action=fundamental_analysis
 - Cache fundamental_analysis di Redis TTL 6 jam
 - Fundamental data per indikator tidak expire — overwrite saja saat ada data baru
 
-**Status:** Disetujui — belum diimplementasi.
+**Status:** ✅ Diimplementasi. Tab FUNDAMENTAL aktif. Seed data via POST /api/admin?action=fundamental_seed (sekali setelah deploy).
 
 ---
