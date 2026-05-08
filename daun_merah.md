@@ -1,6 +1,6 @@
 # Daun Merah — Project Context (Full Reference)
 
-> **Last updated:** 2026-05-07 (session 5)
+> **Last updated:** 2026-05-08 (session 6)
 > **Branch:** main — semua perubahan deployed ke production
 > **Working directory:** `c:\Users\sam\Downloads\Financial_Feed_App`
 > **Production URL:** https://financial-feed-app.vercel.app
@@ -19,9 +19,9 @@ Daun Merah adalah forex news PWA (Progressive Web App) untuk trader forex Indone
 
 | Layer | Teknologi |
 |-------|-----------|
-| Frontend | Vanilla JS + HTML/CSS, single file `index.html` (~3500+ baris) |
+| Frontend | Vanilla JS + HTML/CSS, single file `index.html` (~4200+ baris) |
 | Backend | Vercel Serverless Functions (Node.js, CommonJS `module.exports`) |
-| AI | Groq API — model `llama-3.3-70b-versatile` |
+| AI | **Multi-provider:** Cerebras (Call 1 briefing), SambaNova (Call 2–3 bias+thesis), Groq (Call 4 thesis-invalidation + fallback semua call) |
 | Cache/DB | Upstash Redis REST API |
 | RSS sumber berita | FinancialJuice (`https://www.financialjuice.com/feed.ashx?xy=rss`) — satu-satunya sumber (Nitter dihapus 2026-05-05) |
 | Kalender ekonomi | ForexFactory XML (`nfs.faireconomy.media`) |
@@ -32,6 +32,8 @@ Daun Merah adalah forex news PWA (Progressive Web App) untuk trader forex Indone
 
 **Env vars yang dibutuhkan (di Vercel):**
 - `GROQ_API_KEY`
+- `CEREBRAS_API_KEY`
+- `SAMBANOVA_API_KEY`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `FRED_API_KEY`
@@ -96,17 +98,19 @@ Update Groq prompts di Redis tanpa redeploy. Keys: `prompt_digest`, `prompt_bias
 Cron-triggered web push + Telegram. Auth: `x-cron-secret` header. Setup di cron-job.org: URL `/api/admin?action=push`.
 
 ### `GET /api/market-digest`
-Main AI endpoint. Flow:
+Main AI endpoint. Multi-provider: Cerebras (Call 1), SambaNova (Call 2–3), Groq (Call 4 + fallback). Flow:
 1. Load `prompt_digest` dari Redis (fallback ke hardcoded `DIGEST_INSTR_DEFAULT`)
 2. Fetch RSS via internal `/api/feeds?type=rss`
 3. Fetch ForexFactory kalender (this week + next week)
 4. Load `digest_history` dari Redis
-5. **Groq Call 1:** Market briefing (Bahasa Indonesia, termasuk paragraf XAUUSD scalping)
+5. **Cerebras Call 1:** Market briefing (Bahasa Indonesia, termasuk paragraf XAUUSD scalping)
 6. Save ke `digest_history` (Redis, LPUSH/LTRIM max 7)
-7. **Groq Call 2:** CB Bias Assessment — JSON per currency
+7. **SambaNova Call 2:** CB Bias Assessment — JSON per currency
 8. Merge + save ke Redis `cb_bias`
-9. **Groq Call 3:** Structured thesis JSON
-10. Return: `{article, method, news_count, cal_count, bias_updated, generated_at, thesis}`
+9. **SambaNova Call 3:** Structured thesis JSON
+10. **Groq Call 4:** Thesis Invalidation Monitor — scan open journal entries vs headlines, push notif jika ada kontradiksi
+11. **`autoUpdateFundamentals`** — parse 100 headline terbaru → HSET `fundamental:{currency}`, deteksi CB rate decision → `cb_decisions`
+12. Return: `{article, method, news_count, cal_count, bias_updated, generated_at, thesis}`
 
 Rate limited: 4 req/min per IP.
 
@@ -137,6 +141,18 @@ History sizing calculations per device. Redis sorted set `sizing_history:{device
 
 ### `POST/PATCH/GET/DELETE /api/journal`
 Trade journal CRUD. Soft-delete. Redis `journal:{device_id}:{id}` + sorted set `journal_index:{device_id}`.
+
+### `GET /api/admin?action=fundamental_get`
+Return semua data fundamental per 8 currency dari Redis (`fundamental:{currency}` HGETALL).
+
+### `POST /api/admin?action=fundamental_seed`
+Seed data awal fundamental (dijalankan sekali). Auth: `x-admin-secret`.
+
+### `POST /api/admin?action=fundamental_analysis`
+AI analysis currency terkuat/terlemah dari data fundamental. Cache Redis `fundamental_analysis` TTL 6h. Provider: Groq `llama-3.3-70b-versatile`.
+
+### `POST /api/admin?action=journal_import`
+Bulk import historical trades dengan timestamp asli (preserves `created_at`). Body: `{device_id, entries:[...]}`. Auth: `x-admin-secret`.
 
 ### `POST /api/subscribe`
 Web Push subscription management.
@@ -176,6 +192,7 @@ Font: **Syne** (logo/heading), **DM Mono** (semua teks lainnya)
 | RINGKASAN | `ringkasan` | `--accent` |
 | CAL | `cal` | `--green` |
 | COT | `cot` | `--purple` |
+| FUNDAMENTAL | `fundamental` | `--yellow` |
 | CHECKLIST | `checklist` | `--yellow` |
 | SIZING | `sizing` | `--accent` |
 | JURNAL | `jurnal` | `--pink` |
@@ -242,6 +259,9 @@ localStorage keys: `daunmerah_v2` (state), `daun_merah_playbook` (active), `daun
 | `seen_guids_set` | Redis SET GUID berita (SADD/SMEMBERS, atomic dedup) | 86400s | `api/admin.js` |
 | `push_lock` | Distributed lock cron push (SET NX EX 55) | 55s | `api/admin.js` |
 | `rl:{endpoint}:{ip}:{window}` | Rate limiter counter | auto 2×window | `api/_ratelimit.js` |
+| `fundamental:{currency}` | Hash: indicator → `{actual,period,date,source}` | no TTL (overwrite) | `api/admin.js` + `api/market-digest.js` |
+| `fundamental_analysis` | JSON AI analysis currency terkuat/terlemah | 21600s | `api/admin.js` |
+| `cb_decisions` | Hash: currency → `{last_meeting,last_decision,last_bps}` dari headline | no TTL | `api/market-digest.js` |
 
 **Deprecated (sudah bisa dihapus):** `cot_cache`, `fundamentals_cache`, `seen_guids`
 
@@ -250,17 +270,23 @@ localStorage keys: `daunmerah_v2` (state), `daun_merah_playbook` (active), `daun
 ## Fungsi JS Kunci
 
 ```javascript
-setFeedUI(show)           // toggle toolbar + navFilters visibility
-hideAllPanels()           // hide semua panel (8 panel termasuk petunjukPanel)
-fetchFeed()               // fetch /api/feeds?type=rss
-fetchRegime()             // fetch /api/risk-regime, update banner
-generateRingkasan()       // GET /api/market-digest
-jnPrefillFromThesis()     // prefill form jurnal dari AI thesis
-szGetDeviceId()           // get/create device ID dari localStorage
-ckAutoTick(id, hint)      // auto-centang item checklist
-ckAutoBlock(id, hint)     // auto-block item checklist (merah)
-ckSwitchPlaybook(id)      // ganti playbook + reset state
+setFeedUI(show)             // toggle toolbar + navFilters visibility
+hideAllPanels()             // hide semua panel (9 panel termasuk fundamentalPanel)
+fetchFeed()                 // fetch /api/feeds?type=rss
+fetchRegime()               // fetch /api/risk-regime, update banner
+generateRingkasan()         // GET /api/market-digest
+jnPrefillFromThesis()       // prefill form jurnal dari AI thesis
+szGetDeviceId()             // get/create device ID dari localStorage
+ckAutoTick(id, hint)        // auto-centang item checklist
+ckAutoBlock(id, hint)       // auto-block item checklist (merah)
+ckSwitchPlaybook(id)        // ganti playbook + reset state
 ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
+startCountdownTimer()       // mulai interval 30s countdown event CAL
+stopCountdownTimer()        // hentikan interval saat keluar tab CAL
+renderCountdown()           // hitung + render countdown ke high-impact event terdekat (24h window)
+fetchFundamental()          // GET /api/admin?action=fundamental_get
+renderFundamental()         // render kartu per currency dari fundData
+generateFundamentalAnalysis() // POST /api/admin?action=fundamental_analysis
 ```
 
 ---
@@ -323,6 +349,13 @@ ckAutoTickRegimeCheck(pair) // auto-tick rc1-rc4 dari live data
 - ✅ Push kategori: keyword diperluas + false-positive dibersihkan, dipindah ke `api/_push_keywords.js` (2026-05-06)
 - ✅ Swipe gesture navigasi tab (touchstart/touchend, threshold 60px horizontal, filter nav/input area) (2026-05-07)
 - ✅ Hapus badge sumber "FJ" dari news feed — semua berita dari satu sumber (FinancialJuice), badge tidak informatif (2026-05-07)
+- ✅ Countdown Timer tab CAL — kartu countdown + badge '!' di tab header, warning merah <30 menit, interval 30s hanya saat di tab CAL (2026-05-08)
+- ✅ Tab FUNDAMENTAL — kartu 2×4 grid per currency, data dari Redis `fundamental:{currency}`, AI analysis Groq 6h cache, tombol manual trigger (2026-05-08)
+- ✅ Auto-parse fundamental dari headline RSS — `autoUpdateFundamentals` di `market-digest.js`, regex 3-step: currency prefix → indikator keyword → angka, HSET idempotent (2026-05-08)
+- ✅ Auto-detect CB rate decision dari headline — `parseCBDecision`, simpan ke `cb_decisions` Redis, `cb-status.js` override `last_decision/last_bps/last_meeting` dari hardcoded fallback (2026-05-08)
+- ✅ Multi-provider AI: Cerebras (Call 1), SambaNova (Call 2–3), Groq (Call 4 + fallback) + Thesis Invalidation Monitor (2026-05-08)
+- ✅ XAU/USD ditambahkan ke pair selector JURNAL dan SIZING (2026-05-08)
+- ✅ `journal_import` endpoint — bulk import historical trades dengan timestamp asli, auth `x-admin-secret` (2026-05-08)
 
 ---
 
@@ -351,7 +384,7 @@ File: `api/cb-status.js`, object `CB_DATA`
 | BOE | 3.75% | 2026-04-30 | hold |
 | BOJ | 0.75% | 2026-04-28 | hold |
 | BOC | 2.25% | 2026-04-29 | hold |
-| RBA | 4.35% | 2026-05-06 | hike +25bps (3rd straight) |
+| RBA | 4.35% | 2026-05-06 | hike +25bps |
 | RBNZ | 2.25% | 2026-04-09 | hold |
 | SNB | 0.00% | 2026-03-19 | hold |
 
