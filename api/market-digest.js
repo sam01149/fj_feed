@@ -324,9 +324,13 @@ ${xauHistoryBlock}`;
       const saves = [
         redisCmd('LPUSH', 'digest_history', fxEntry).then(() => redisCmd('LTRIM', 'digest_history', 0, 6)),
       ];
-      if (xauParagraph) {
+      // Only save XAU history when gold headlines are substantive — prevents hallucinated
+      // thin-day analysis from polluting future sessions via xauHistoryBlock continuity prompt
+      if (xauParagraph && goldItems.length >= 3) {
         const xauEntry = JSON.stringify({ at: new Date().toISOString(), wib: wibStr, xau_summary: xauParagraph });
         saves.push(redisCmd('LPUSH', 'xau_history', xauEntry).then(() => redisCmd('LTRIM', 'xau_history', 0, 3)));
+      } else if (xauParagraph) {
+        console.log(`XAU history skipped — goldItems ${goldItems.length} < 3, output unreliable`);
       }
       await Promise.all(saves);
       console.log('Digest + XAU history saved');
