@@ -3,8 +3,15 @@ const rateLimit = require('./_ratelimit');
 const RSS_URL      = 'https://www.financialjuice.com/feed.ashx?xy=rss';
 const FF_THIS_WEEK = 'https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
 const FF_NEXT_WEEK = 'https://nfs.faireconomy.media/ff_calendar_nextweek.xml';
-const GROQ_MODEL   = 'llama-3.3-70b-versatile';
-const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+
+// AI providers
+const CEREBRAS_URL   = 'https://api.cerebras.ai/v1/chat/completions';
+const CEREBRAS_MODEL = 'llama-4-scout-17b-16e-instruct';  // Call 1: briefing prose
+const SAMBANOVA_URL  = 'https://api.sambanova.ai/v1/chat/completions';
+const SAMBANOVA_MODEL = 'DeepSeek-V3-0324';               // Call 2 & 3: structured JSON
+const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL     = 'llama-3.3-70b-versatile';         // Call 4 + fallback all calls
+
 const MAJOR_CURRENCIES = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
 const GOLD_KEYWORDS = [
   // Direct gold references
@@ -32,12 +39,30 @@ const GOLD_KEYWORDS = [
   'comex','silver price','silver rally','silver drop',
 ];
 
+// Shared low-level fetch for any OpenAI-compatible provider
+async function aiCall(url, apiKey, model, messages, maxTokens, temperature, timeoutMs) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const e = new Error(err?.error?.message || `HTTP ${res.status}`);
+    e.status = res.status;
+    throw e;
+  }
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
 
 module.exports = async function handler(req, res) {
-  console.log('market-digest v2 START', new Date().toISOString());
+  console.log('market-digest v3 START', new Date().toISOString());
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // Cached mode — serve last saved digest from Redis, no Groq calls
+  // Cached mode — serve last saved digest from Redis, no AI calls
   if (req.query?.mode === 'cached') {
     try {
       const raw = await redisCmd('GET', 'latest_article');
@@ -46,14 +71,17 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ from_cache: true, article: null });
   }
 
-  // 3 Groq calls per request — rate limit to 4 req/min per IP
+  // Multi-provider AI calls — rate limit to 4 req/min per IP
   if (await rateLimit(req, res, { limit: 4, windowSecs: 60, endpoint: 'market-digest' })) return;
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('Surrogate-Control', 'no-store');
   res.setHeader('x-vercel-cache', 'BYPASS');
-  const GROQ_KEY = process.env.GROQ_API_KEY;
+
+  const CEREBRAS_KEY  = process.env.CEREBRAS_API_KEY;
+  const SAMBANOVA_KEY = process.env.SAMBANOVA_API_KEY;
+  const GROQ_KEY      = process.env.GROQ_API_KEY;
 
   // 1. RSS — current feed + 36h Redis history in parallel
   let rssItems = [];
@@ -128,7 +156,7 @@ module.exports = async function handler(req, res) {
   const headlinesBlock = headlinesForBriefing.length > 0 ? headlinesForBriefing.map((i,idx)=>`${idx+1}. ${i.title}`).join('\n') : '(Tidak ada headline)';
   const calBlock = calEvents.length > 0 ? calEvents.map(e=>`- ${e.date} | ${e.time_wib} | ${e.currency} | ${e.event}`).join('\n') : '(Tidak ada event high-impact)';
 
-  // Gold-specific headline filter — split recent vs historical so Groq weights correctly
+  // Gold-specific headline filter — split recent vs historical so AI weights correctly
   const cutoff12h = Date.now() - 12 * 60 * 60 * 1000;
   const isGold = i => GOLD_KEYWORDS.some(kw => i.title.toLowerCase().includes(kw));
   const goldRecent = recentItems.filter(i => isGold(i) && new Date(i.pubDate).getTime() > cutoff12h).slice(0, 20);
@@ -160,7 +188,7 @@ module.exports = async function handler(req, res) {
     ? xauHistory.map(h => `[${h.wib}] ${h.xau_summary}`).join('\n')
     : '(Belum ada riwayat XAU — ini sesi pertama)';
 
-  // 3c. Load externalized prompts from Redis (Task 10e) — fall back to hardcoded if missing
+  // 3c. Load externalized prompts from Redis — fall back to hardcoded if missing
   let promptDigestInstr = null;
   try {
     promptDigestInstr = await redisCmd('GET', 'prompt_digest');
@@ -168,10 +196,9 @@ module.exports = async function handler(req, res) {
     console.warn('prompt_digest Redis load failed:', e.message);
   }
 
-  // 4. Groq Call 1: market briefing
-  let article = null, method = 'groq';
-  if (GROQ_KEY && recentItems.length > 0) {
-    // Instruction part (can be overridden via Redis prompt_digest key)
+  // ── 4. Call 1: Market Briefing — Cerebras → Groq fallback ────────────────────
+  let article = null, method = 'fallback';
+  if (recentItems.length > 0) {
     const DIGEST_INSTR_DEFAULT = `Kamu analis macro FX senior. Pembaca: trader Indonesia, macro discretionary, sudah bisa baca chart, sudah tahu definisi dasar (DXY, real yield, carry, risk-on/off, basis point). Jangan jelaskan istilah. Jangan kontekstualisasi level beginner.
 
 TUGAS: Briefing pre-session dari headlines + kalender. Output Bahasa Indonesia, prosa mengalir, tanpa heading/bullet/bold/emoji, kecuali satu marker "XAUUSD:" yang dijelaskan di bawah.
@@ -234,34 +261,37 @@ ${historyBlock}
 === RIWAYAT XAUUSD SESI SEBELUMNYA (4 sesi terakhir) ===
 ${xauHistoryBlock}`;
 
-    try {
-      const groqRes = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_KEY}`,
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 1500,
-        }),
-        signal: AbortSignal.timeout(25000),
-      });
-      if (groqRes.ok) {
-        const gd = await groqRes.json();
-        const raw = gd?.choices?.[0]?.message?.content || '';
-        if (raw.trim()) article = raw.trim();
-      } else {
-        const errData = await groqRes.json().catch(()=>({}));
-        console.warn('Groq HTTP error:', groqRes.status, errData?.error?.message || '');
-        method = groqRes.status === 429 ? 'fallback_quota' : 'fallback';
-      }
-    } catch(e) { console.warn('Groq failed:', e.message); method = 'fallback'; }
-  } else { method = 'fallback'; }
+    const call1Messages = [{ role: 'user', content: prompt }];
 
-  // 5. Fallback
+    // Primary: Cerebras
+    if (CEREBRAS_KEY) {
+      try {
+        console.log('Call 1: trying Cerebras');
+        const raw = await aiCall(CEREBRAS_URL, CEREBRAS_KEY, CEREBRAS_MODEL, call1Messages, 1500, 0.3, 20000);
+        if (raw.trim()) { article = raw.trim(); method = 'cerebras'; }
+        console.log('Call 1: Cerebras OK, length', article?.length);
+      } catch(e) {
+        console.warn('Call 1 Cerebras failed:', e.status || e.message);
+      }
+    }
+
+    // Fallback: Groq
+    if (!article && GROQ_KEY) {
+      try {
+        console.log('Call 1: falling back to Groq');
+        const raw = await aiCall(GROQ_URL, GROQ_KEY, GROQ_MODEL, call1Messages, 1500, 0.3, 25000);
+        if (raw.trim()) { article = raw.trim(); method = 'groq'; }
+        console.log('Call 1: Groq fallback OK, length', article?.length);
+      } catch(e) {
+        console.warn('Call 1 Groq fallback failed:', e.status || e.message);
+        method = e.status === 429 ? 'fallback_quota' : 'fallback';
+      }
+    }
+  } else {
+    method = 'fallback';
+  }
+
+  // ── 5. Manual fallback (no AI) ────────────────────────────────────────────────
   if (!article) {
     method = 'fallback';
     if (recentItems.length === 0) {
@@ -279,7 +309,7 @@ ${xauHistoryBlock}`;
   }
 
   // ── 5b. Save digest + xau history (parallel) ──
-  if (article && method === 'groq') {
+  if (article && method !== 'fallback' && method !== 'fallback_quota') {
     try {
       const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const wibStr = `${String(wibNow.getUTCDate()).padStart(2,'0')} ${MONTHS[wibNow.getUTCMonth()]} ${String(wibNow.getUTCHours()).padStart(2,'0')}:${String(wibNow.getUTCMinutes()).padStart(2,'0')} WIB`;
@@ -303,9 +333,9 @@ ${xauHistoryBlock}`;
     } catch(e) { console.warn('Digest history save failed:', e.message); }
   }
 
-  // ── 6. Groq Call 2: CB Bias Assessment ──────────────────
+  // ── 6. Call 2: CB Bias — SambaNova → Groq fallback ───────────────────────────
   let biasUpdated = [];
-  if (GROQ_KEY && recentItems.length > 0) {
+  if (recentItems.length > 0) {
     const CB_KEYWORDS = {
       USD: ['fed ','fomc','powell','goolsbee','waller','kashkari','warsh','federal reserve','us inflation','us gdp','us jobs','nfp','us cpi'],
       EUR: ['ecb','lagarde','lane','schnabel','euro zone','eurozone','euro area','eu inflation','eu gdp'],
@@ -317,7 +347,6 @@ ${xauHistoryBlock}`;
       CHF: ['snb','swiss national bank','schlegel','switzerland','swiss franc','franc'],
     };
 
-    // Find which currencies have relevant headlines
     const relevantCurrencies = [];
     const headlinesLower = recentItems.map(i => i.title.toLowerCase());
     for (const [cur, kws] of Object.entries(CB_KEYWORDS)) {
@@ -327,7 +356,6 @@ ${xauHistoryBlock}`;
     }
 
     console.log('relevantCurrencies:', JSON.stringify(relevantCurrencies));
-    console.log('recentItems sample:', recentItems.slice(0,3).map(i=>i.title));
     if (relevantCurrencies.length > 0) {
       const relevantHeadlines = recentItems.filter(i => {
         const lower = i.title.toLowerCase();
@@ -356,89 +384,78 @@ ${xauHistoryBlock}`;
         'Only include currencies where you have enough evidence from the headlines. If insufficient evidence for a currency, omit it.',
       ].join('\n');
 
-      console.log('Starting Groq Call 2 for currencies:', relevantCurrencies);
-      try {
-        const biasRes = await fetch(GROQ_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: [{ role: 'user', content: biasPrompt }],
-            temperature: 0.1,
-            max_tokens: 400,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
+      const call2Messages = [{ role: 'user', content: biasPrompt }];
+      let biasRaw = null;
 
-        console.log('Groq Call 2 status:', biasRes.status);
-        if (biasRes.ok) {
-          const biasData = await biasRes.json();
-          const rawBias = biasData?.choices?.[0]?.message?.content?.trim() || '';
+      // Primary: SambaNova
+      if (SAMBANOVA_KEY) {
+        try {
+          console.log('Call 2: trying SambaNova');
+          biasRaw = await aiCall(SAMBANOVA_URL, SAMBANOVA_KEY, SAMBANOVA_MODEL, call2Messages, 400, 0.1, 20000);
+          console.log('Call 2: SambaNova OK');
+        } catch(e) {
+          console.warn('Call 2 SambaNova failed:', e.status || e.message);
+        }
+      }
 
-          // Parse JSON — strip any accidental markdown
-          const clean = rawBias.replace(/```json|```/g, '').trim();
-          console.log('Groq bias raw:', rawBias.substring(0, 300));
+      // Fallback: Groq
+      if (!biasRaw && GROQ_KEY) {
+        try {
+          console.log('Call 2: falling back to Groq');
+          biasRaw = await aiCall(GROQ_URL, GROQ_KEY, GROQ_MODEL, call2Messages, 400, 0.1, 15000);
+          console.log('Call 2: Groq fallback OK');
+        } catch(e) {
+          console.warn('Call 2 Groq fallback failed:', e.status || e.message);
+        }
+      }
+
+      if (biasRaw) {
+        try {
+          const clean = biasRaw.replace(/```json|```/g, '').trim();
+          console.log('Call 2 bias raw:', biasRaw.substring(0, 300));
           const parsed = JSON.parse(clean);
-          console.log('Groq bias parsed:', JSON.stringify(parsed));
+          console.log('Call 2 bias parsed:', JSON.stringify(parsed));
 
           const VALID_BIASES = ['Hawkish','Cautious Hawkish','Neutral','Data Dependent','On Hold','Cautious Dovish','Dovish','Split'];
           const VALID_CONFIDENCES = ['High','Medium','Low'];
           const VALID_CURRENCIES = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
           const now = new Date().toISOString();
 
-          // Load existing bias from Redis
           let existing = {};
           try {
             const raw = await redisCmd('GET', 'cb_bias');
             if (raw) existing = JSON.parse(raw);
           } catch(e) {}
 
-          // Merge new bias — only 8 major currencies
-          console.log('Bias parsed entries:', JSON.stringify(Object.entries(parsed)));
           for (const [cur, entry] of Object.entries(parsed)) {
             const curOk = VALID_CURRENCIES.has(cur);
-            // Support both new {bias, confidence} format and legacy string format
             const bias = (typeof entry === 'object' && entry !== null) ? entry.bias : entry;
             const confidence = (typeof entry === 'object' && entry !== null) ? entry.confidence : null;
             const biasOk = VALID_BIASES.includes(bias);
             const confidenceOk = VALID_CONFIDENCES.includes(confidence);
-            console.log('Check', cur, bias, confidence, '→ cur:', curOk, 'bias:', biasOk, 'conf:', confidenceOk);
             if (curOk && biasOk) {
               existing[cur] = { bias, confidence: confidenceOk ? confidence : 'Low', updated_at: now };
               biasUpdated.push(cur);
             }
           }
 
-          // Save back to Redis
           if (biasUpdated.length > 0) {
-            try {
-              console.log('Redis URL:', process.env.UPSTASH_REDIS_REST_URL ? process.env.UPSTASH_REDIS_REST_URL.substring(0,50) : 'NOT SET');
-              console.log('Redis TOKEN:', process.env.UPSTASH_REDIS_REST_TOKEN ? 'SET (len=' + process.env.UPSTASH_REDIS_REST_TOKEN.length + ')' : 'NOT SET');
-              const saveResult = await redisCmd('SET', 'cb_bias', JSON.stringify(existing));
-              console.log('CB bias Redis SET result:', saveResult);
-              if (saveResult === 'OK') {
-                console.log('CB bias saved OK:', JSON.stringify(biasUpdated));
-              } else {
-                console.error('CB bias Redis SET unexpected result:', JSON.stringify(saveResult));
-              }
-            } catch(saveErr) {
-              console.error('CB bias Redis save FAILED:', saveErr.message);
-            }
+            const saveResult = await redisCmd('SET', 'cb_bias', JSON.stringify(existing));
+            console.log('CB bias Redis SET result:', saveResult);
           }
+        } catch(e) {
+          console.warn('Call 2 bias parse/save failed:', e.message);
         }
-      } catch(e) {
-        console.warn('Bias assessment failed:', e.message);
       }
     }
   }
 
-  // ── 7. Groq Call 3: Structured Trade Thesis ─────────────
+  // ── 7. Call 3: Structured Trade Thesis — SambaNova → Groq fallback ───────────
   let thesis = null;
-  if (GROQ_KEY && recentItems.length > 0 && article) {
+  if (recentItems.length > 0 && article) {
     const cbSummary = biasUpdated.length > 0
       ? `CB biases just updated for: ${biasUpdated.join(', ')}`
       : 'CB biases unchanged this cycle';
-    // Extract XAUUSD section from article to ensure thesis AI sees it (it's near the end)
     const xauSectionMatch = article.indexOf('XAUUSD:');
     const xauSection = xauSectionMatch !== -1 ? article.slice(xauSectionMatch, xauSectionMatch + 700) : '';
     const briefingForThesis = article.slice(0, 900) + (xauSection && xauSectionMatch > 900 ? '\n\n' + xauSection : '');
@@ -487,54 +504,51 @@ ${xauHistoryBlock}`;
       'xau_confidence: 1-5 where 5 = multiple converging headlines with clear direction.',
     ].join('\n');
 
-    let thesisRaw = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const call3Messages = [{ role: 'user', content: thesisPrompt }];
+    const VALID_DIR = ['long', 'short', 'no_trade'];
+    const VALID_REG = ['risk_on', 'risk_off', 'neutral'];
+    const VALID_CURR = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
+    const VALID_XAU_BIAS = ['bullish', 'bearish', 'neutral', 'conflicting'];
+    const VALID_XAU_DRIVER = ['real_yield', 'safe_haven', 'risk_sentiment', 'usd_strength', 'insufficient_data'];
+
+    function validateThesis(parsed) {
+      return (
+        VALID_REG.includes(parsed.dominant_regime) &&
+        VALID_CURR.has(parsed.strongest_currency) &&
+        VALID_CURR.has(parsed.weakest_currency) &&
+        VALID_DIR.includes(parsed.direction) &&
+        typeof parsed.confidence_1_to_5 === 'number' &&
+        parsed.confidence_1_to_5 >= 1 && parsed.confidence_1_to_5 <= 5 &&
+        VALID_XAU_BIAS.includes(parsed.xau_bias) &&
+        VALID_XAU_DRIVER.includes(parsed.xau_dominant_driver)
+      );
+    }
+
+    // Try SambaNova (2 attempts), then Groq fallback (1 attempt)
+    const call3Providers = [];
+    if (SAMBANOVA_KEY) call3Providers.push({ url: SAMBANOVA_URL, key: SAMBANOVA_KEY, model: SAMBANOVA_MODEL, label: 'SambaNova', timeout: 20000 });
+    if (SAMBANOVA_KEY) call3Providers.push({ url: SAMBANOVA_URL, key: SAMBANOVA_KEY, model: SAMBANOVA_MODEL, label: 'SambaNova retry', timeout: 20000 });
+    if (GROQ_KEY)      call3Providers.push({ url: GROQ_URL,      key: GROQ_KEY,      model: GROQ_MODEL,      label: 'Groq fallback', timeout: 15000 });
+
+    for (const provider of call3Providers) {
+      if (thesis) break;
       try {
-        const thesisRes = await fetch(GROQ_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-          body: JSON.stringify({
-            model: GROQ_MODEL,
-            messages: [{ role: 'user', content: thesisPrompt }],
-            temperature: 0.1,
-            max_tokens: 500,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (thesisRes.ok) {
-          const td = await thesisRes.json();
-          const raw = td?.choices?.[0]?.message?.content?.trim() || '';
-          const clean = raw.replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(clean);
-          // Validate required fields
-          const VALID_DIR = ['long', 'short', 'no_trade'];
-          const VALID_REG = ['risk_on', 'risk_off', 'neutral'];
-          const VALID_CURR = new Set(['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF']);
-          const VALID_XAU_BIAS = ['bullish', 'bearish', 'neutral', 'conflicting'];
-          const VALID_XAU_DRIVER = ['real_yield', 'safe_haven', 'risk_sentiment', 'usd_strength', 'insufficient_data'];
-          if (
-            VALID_REG.includes(parsed.dominant_regime) &&
-            VALID_CURR.has(parsed.strongest_currency) &&
-            VALID_CURR.has(parsed.weakest_currency) &&
-            VALID_DIR.includes(parsed.direction) &&
-            typeof parsed.confidence_1_to_5 === 'number' &&
-            parsed.confidence_1_to_5 >= 1 && parsed.confidence_1_to_5 <= 5 &&
-            VALID_XAU_BIAS.includes(parsed.xau_bias) &&
-            VALID_XAU_DRIVER.includes(parsed.xau_dominant_driver)
-          ) {
-            thesisRaw = parsed;
-            break;
-          } else {
-            console.warn('Thesis schema invalid on attempt', attempt + 1, JSON.stringify(parsed).slice(0, 200));
-          }
+        console.log('Call 3: trying', provider.label);
+        const raw = await aiCall(provider.url, provider.key, provider.model, call3Messages, 500, 0.1, provider.timeout);
+        const clean = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        if (validateThesis(parsed)) {
+          thesis = parsed;
+          console.log('Call 3: OK via', provider.label);
+        } else {
+          console.warn('Call 3: schema invalid via', provider.label, JSON.stringify(parsed).slice(0, 200));
         }
       } catch(e) {
-        console.warn('Thesis Groq call attempt', attempt + 1, 'failed:', e.message);
+        console.warn('Call 3', provider.label, 'failed:', e.status || e.message);
       }
     }
 
-    if (thesisRaw) {
-      thesis = thesisRaw;
+    if (thesis) {
       try {
         await redisCmd('SET', 'latest_thesis', JSON.stringify(thesis), 'EX', 21600);
         console.log('Thesis saved to Redis');
@@ -542,22 +556,84 @@ ${xauHistoryBlock}`;
         console.warn('Thesis Redis save failed:', e.message);
       }
     } else {
-      console.warn('Thesis generation failed after 2 attempts — null returned');
+      console.warn('Call 3: all attempts failed — thesis null');
+    }
+  }
+
+  // ── 8. Call 4: Thesis Invalidation Monitor — Groq only ───────────────────────
+  let thesisAlerts = null;
+  const deviceId = req.query?.device_id;
+  if (GROQ_KEY && deviceId && method !== 'fallback' && method !== 'fallback_quota') {
+    try {
+      // Load open journal entries for this device (newest first, cap at 10 to read)
+      const ids = await redisCmd('ZRANGE', `journal_index:${deviceId}`, 0, -1, 'REV') || [];
+      const openEntries = [];
+      for (const id of ids.slice(0, 10)) {
+        try {
+          const raw = await redisCmd('GET', `journal:${deviceId}:${id}`);
+          if (!raw) continue;
+          const entry = JSON.parse(raw);
+          if (entry.status === 'open' && entry.thesis_text?.trim()) {
+            openEntries.push(entry);
+          }
+          if (openEntries.length >= 5) break;
+        } catch(e) { /* skip bad entry */ }
+      }
+
+      if (openEntries.length > 0) {
+        console.log('Call 4: checking', openEntries.length, 'open entries against headlines');
+        const thesesBlock = openEntries
+          .map((e, i) => `${i+1}. [ID:${e.id}] ${e.pair} ${(e.direction||'').toUpperCase()}: ${e.thesis_text}`)
+          .join('\n');
+        const headlines30 = recentItems.slice(0, 30).map((h, i) => `${i+1}. ${h.title}`).join('\n');
+
+        const monitorPrompt = [
+          'You are a forex trade thesis monitor.',
+          '',
+          'Open trade theses:',
+          thesesBlock,
+          '',
+          'Recent headlines (newest first):',
+          headlines30,
+          '',
+          'Check if ANY headline directly contradicts or significantly undermines the stated reason for ANY open thesis.',
+          'Only flag genuine contradictions — news that directly opposes the trade direction rationale, not tangentially related news.',
+          'Ignore price-level headlines; focus on fundamental basis changes (macro data, CB policy shifts, geopolitical reversals).',
+          '',
+          'Return ONLY valid JSON, no markdown, no explanation:',
+          '{"alerts":[{"entry_id":"...","pair":"...","direction":"...","headline":"exact headline text","reason":"one sentence why this contradicts the thesis"}]}',
+          'If no genuine contradictions found: {"alerts":[]}',
+        ].join('\n');
+
+        const raw = await aiCall(GROQ_URL, GROQ_KEY, GROQ_MODEL, [{ role: 'user', content: monitorPrompt }], 400, 0.1, 15000);
+        const clean = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        if (Array.isArray(parsed.alerts)) {
+          thesisAlerts = parsed.alerts;
+          console.log('Call 4: found', thesisAlerts.length, 'alert(s)');
+        }
+      } else {
+        console.log('Call 4: no open entries with thesis_text, skipping');
+      }
+    } catch(e) {
+      console.warn('Call 4 Thesis Monitor failed:', e.message);
     }
   }
 
   const payload = {
     article, method, thesis,
-    news_count:   recentItems.length,
-    gold_count:   goldItems.length,
-    cal_count:    calEvents.length,
-    bias_updated: biasUpdated,
-    generated_at: new Date().toISOString(),
+    thesis_alerts:  thesisAlerts,
+    news_count:     recentItems.length,
+    gold_count:     goldItems.length,
+    cal_count:      calEvents.length,
+    bias_updated:   biasUpdated,
+    generated_at:   new Date().toISOString(),
   };
 
-  // Persist full payload to Redis so cached mode and page refreshes work
-  if (article && method === 'groq') {
-    redisCmd('SET', 'latest_article', JSON.stringify(payload), 'EX', 21600).catch(() => {});
+  // Persist full payload to Redis so cached mode works (exclude thesis_alerts — device-specific)
+  if (article && method !== 'fallback' && method !== 'fallback_quota') {
+    const toCache = { ...payload, thesis_alerts: null };
+    redisCmd('SET', 'latest_article', JSON.stringify(toCache), 'EX', 21600).catch(() => {});
   }
 
   return res.status(200).json(payload);

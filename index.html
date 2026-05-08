@@ -337,8 +337,32 @@ body {
 .ringkasan-method {
   font-size: 9px; padding: 2px 8px; border-radius: 3px; letter-spacing: .5px;
 }
+.ringkasan-method.groq     { background: rgba(245,166,35,.1); color: #f5a623; }
+.ringkasan-method.cerebras { background: rgba(100,220,160,.1); color: #64dca0; }
 .ringkasan-method.gemini   { background: rgba(255,211,42,.1); color: var(--yellow); }
 .ringkasan-method.fallback { background: rgba(255,255,255,.06); color: var(--muted); }
+
+.thesis-alert-card {
+  background: rgba(192,57,43,.08); border: 1px solid rgba(192,57,43,.35);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+}
+.thesis-alert-header {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 10px;
+}
+.thesis-alert-item {
+  border-top: 1px solid rgba(255,255,255,.07); padding-top: 10px; margin-top: 10px;
+}
+.thesis-alert-item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.thesis-alert-pair {
+  font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 4px;
+}
+.thesis-alert-headline {
+  font-size: 11px; color: var(--muted); margin-bottom: 4px; font-style: italic;
+}
+.thesis-alert-reason {
+  font-size: 11px; color: rgba(255,255,255,.7); line-height: 1.5;
+}
 
 .ringkasan-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -1908,7 +1932,8 @@ async function generateRingkasan() {
   btn.querySelector('span').textContent = 'Generating...';
 
   try {
-    const res = await fetch('/api/market-digest', {
+    const deviceId = szGetDeviceId();
+    const res = await fetch('/api/market-digest?device_id=' + encodeURIComponent(deviceId), {
       signal: AbortSignal.timeout(45000),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1950,7 +1975,7 @@ function renderRingkasan() {
   inner.innerHTML = `
     <div class="ringkasan-meta">
       <div class="ringkasan-meta-left">${tsStr} · ${d.news_count} berita${d.gold_count ? ' · ' + d.gold_count + ' XAU' : ''} · ${d.cal_count} kalender${d.from_cache ? ' · cache' : ''}</div>
-      <span class="ringkasan-method ${d.method}">${d.method === 'groq' ? '⚡ Groq AI' : d.method === 'gemini' ? '✨ Gemini AI' : '⚙️ Auto'}</span>
+      <span class="ringkasan-method ${d.method}">${{cerebras:'⚡ Cerebras',groq:'⚡ Groq',gemini:'✨ Gemini'}[d.method] || '⚙️ Auto'}</span>
     </div>
 
     <div class="ringkasan-stats">
@@ -1965,6 +1990,8 @@ function renderRingkasan() {
     </div>
 
     ${d.thesis && d.thesis.confidence_1_to_5 >= 3 ? renderThesisCard(d.thesis) : ''}
+
+    ${d.thesis_alerts && d.thesis_alerts.length > 0 ? renderThesisAlerts(d.thesis_alerts) : ''}
 
     <div class="ringkasan-card">
       <div class="ringkasan-text">${escHtml(d.article)}</div>
@@ -2006,6 +2033,19 @@ function renderThesisCard(t) {
     ${t.catalyst_dependency ? `<div class="thesis-label">KATALIS</div><div class="thesis-val">${escHtml(t.catalyst_dependency)}</div>` : ''}
     ${t.time_horizon_days ? `<div class="thesis-label">HORIZON</div><div class="thesis-val">${t.time_horizon_days} hari</div>` : ''}
     ${t.direction !== 'no_trade' ? `<button class="thesis-use-btn" onclick="jnPrefillFromThesis()">Gunakan untuk mulai jurnal →</button>` : ''}
+  </div>`;
+}
+
+function renderThesisAlerts(alerts) {
+  const items = alerts.map(a => `
+    <div class="thesis-alert-item">
+      <div class="thesis-alert-pair">⚠ ${escHtml(a.pair)} ${escHtml((a.direction||'').toUpperCase())}</div>
+      <div class="thesis-alert-headline">"${escHtml(a.headline)}"</div>
+      <div class="thesis-alert-reason">${escHtml(a.reason)}</div>
+    </div>`).join('');
+  return `<div class="thesis-alert-card">
+    <div class="thesis-alert-header">Thesis Alert · ${alerts.length} kontradiksi terdeteksi</div>
+    ${items}
   </div>`;
 }
 
