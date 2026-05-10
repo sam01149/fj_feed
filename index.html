@@ -524,7 +524,17 @@ body {
 .fund-td-ind { font-size: 9px; color: var(--muted); letter-spacing: .2px; }
 .fund-td-val { font-size: 10px; color: var(--text); text-align: right; padding-left: 8px; white-space: nowrap; width: 80px; }
 .fund-td-val.no-data { color: var(--muted); }
+.fund-td-val.bull { color: var(--green); }
+.fund-td-val.bear { color: var(--red); }
 .fund-td-per { font-size: 8px; color: var(--muted); opacity: .7; text-align: right; padding-left: 10px; white-space: nowrap; width: 72px; }
+.fund-score-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fund-score-bar  { flex: 1; height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.fund-score-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+.fund-score-num  { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.fund-score-conf { font-family: 'DM Mono', monospace; font-size: 8px; padding: 2px 6px; border-radius: 3px; letter-spacing: .3px; white-space: nowrap; }
+.fund-score-conf.high { background: rgba(0,200,150,.12); color: var(--green); }
+.fund-score-conf.med  { background: rgba(255,211,42,.10); color: var(--yellow); }
+.fund-score-conf.low  { background: rgba(255,255,255,.06); color: var(--muted); }
 /* AI Analysis section */
 .fund-analysis-wrap { margin-top: 4px; }
 .fund-analysis-btn {
@@ -2630,6 +2640,49 @@ async function fetchRealYields() {
 
 const FUND_CUR_ORDER = ['USD','EUR','GBP','JPY','CAD','AUD','NZD','CHF'];
 
+// dir: 1 = higher is bullish, -1 = higher is bearish
+const FUND_SCORE_RULES = {
+  'CPI YoY':          { dir: 1,  threshold: 2.0   },
+  'CPI MoM':          { dir: 1,  threshold: 0.2   },
+  'Core CPI MoM':     { dir: 1,  threshold: 0.2   },
+  'Core PCE':         { dir: 1,  threshold: 0.2   },
+  'PPI MoM':          { dir: 1,  threshold: 0.1   },
+  'CPI Flash YoY':    { dir: 1,  threshold: 2.0   },
+  'German CPI YoY':   { dir: 1,  threshold: 2.0   },
+  'GDP QoQ':          { dir: 1,  threshold: 0     },
+  'GDP QoQ Flash':    { dir: 1,  threshold: 0     },
+  'NFP':              { dir: 1,  threshold: 100   }, // stored as 115 (K), not 115000
+  'Unemployment Rate':{ dir: -1, threshold: 4.5   },
+  'Jobless Claims':   { dir: -1, threshold: 230   }, // stored as 230 (K)
+  'ISM Services':     { dir: 1,  threshold: 50    },
+  'ISM Manufacturing':{ dir: 1,  threshold: 50    },
+  'Manufacturing PMI':{ dir: 1,  threshold: 50    },
+  'Services PMI':     { dir: 1,  threshold: 50    },
+  'IFO Business':     { dir: 1,  threshold: 100   },
+  'ZEW Sentiment':    { dir: 1,  threshold: 0     },
+  'KOF Barometer':    { dir: 1,  threshold: 100   },
+  'Retail Sales MoM': { dir: 1,  threshold: 0     },
+};
+
+function parseIndVal(str) {
+  if (!str || str === '—') return null;
+  const s = str.replace(/,/g, '').trim();
+  const kM = s.match(/^(-?[\d.]+)K$/i);
+  if (kM) return parseFloat(kM[1]); // keep in K unit, matches thresholds above
+  const pM = s.match(/^(-?[\d.]+)%$/);
+  if (pM) return parseFloat(pM[1]);
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function scoreInd(key, valStr) {
+  const rule = FUND_SCORE_RULES[key];
+  if (!rule) return null;
+  const n = parseIndVal(valStr);
+  if (n === null) return null;
+  return (rule.dir === 1 ? n > rule.threshold : n <= rule.threshold) ? 1 : -1;
+}
+
 async function fetchFundamental() {
   const grid = document.getElementById('fundGrid');
   const btn  = document.getElementById('fundRefreshBtn');
@@ -2673,18 +2726,41 @@ function renderFundamental() {
       .filter(([k]) => k !== rateKey)
       .map(([k, v]) => {
         const period = v.period && v.period !== '—' ? v.period : '';
+        const sig    = scoreInd(k, v.actual);
+        const sigCls = sig === 1 ? ' bull' : sig === -1 ? ' bear' : '';
         return `<tr>
           <td class="fund-td-ind" title="${escHtml(k)}">${escHtml(k)}</td>
-          <td class="fund-td-val${v.actual ? '' : ' no-data'}">${escHtml(v.actual || '—')}</td>
+          <td class="fund-td-val${v.actual ? sigCls : ' no-data'}">${escHtml(v.actual || '—')}</td>
           <td class="fund-td-per">${escHtml(period)}</td>
         </tr>`;
       }).join('');
+
+    // Compute score (normalized, excludes rate key)
+    let bullCt = 0, bearCt = 0, scoredCt = 0;
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === rateKey) return;
+      const s = scoreInd(k, v.actual);
+      if (s !== null) { scoredCt++; if (s > 0) bullCt++; else bearCt++; }
+    });
+    const score      = scoredCt > 0 ? Math.round(bullCt / scoredCt * 100) : null;
+    const scoreLabel = score === null ? null : score >= 60 ? 'Bullish' : score < 40 ? 'Bearish' : 'Neutral';
+    const scoreColor = score === null ? 'var(--muted)' : score >= 60 ? 'var(--green)' : score < 40 ? 'var(--red)' : 'var(--yellow)';
+    const confTier   = scoredCt >= 7 ? 'high' : scoredCt >= 4 ? 'med' : scoredCt > 0 ? 'low' : null;
+    const confLabel  = confTier === 'high' ? 'High' : confTier === 'med' ? 'Med' : confTier === 'low' ? 'Low' : null;
+
+    const scoreHtml = score !== null ? `
+      <div class="fund-score-row">
+        <div class="fund-score-bar"><div class="fund-score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+        <span class="fund-score-num" style="color:${scoreColor}">${scoreLabel} ${score}%</span>
+        <span class="fund-score-conf ${confTier}">${confLabel} (${scoredCt})</span>
+      </div>` : '';
 
     return `<div class="fund-card" style="border-left:3px solid ${col}">
       <div class="fund-card-header">
         <span class="fund-cur" style="color:${col}">${cur}</span>
         ${rateVal ? `<span class="fund-rate">${escHtml(rateVal)}</span>` : ''}
       </div>
+      ${scoreHtml}
       <table class="fund-table">
         ${rows || '<tr><td colspan="3" class="fund-td-ind" style="padding:4px 0">Tidak ada data</td></tr>'}
       </table>
