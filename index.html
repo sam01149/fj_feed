@@ -471,7 +471,18 @@ body {
 .cot-row { display: grid; grid-template-columns: 36px 46px 1fr auto; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
 .cot-row:last-child { border-bottom: none; }
 .cot-cur { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px; }
-.cot-pie { display: flex; align-items: center; justify-content: center; }
+.cot-pie { display: flex; align-items: center; justify-content: center; position: relative; cursor: default; }
+.cot-pie::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%; transform: translateX(-50%);
+  background: #1a1a2e; border: 1px solid var(--border);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .3px;
+  padding: 4px 9px; border-radius: 5px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 20;
+}
+.cot-pie:hover::after { opacity: 1; }
 .cot-ls-vals { display: flex; flex-direction: column; gap: 2px; }
 .cot-long-lbl { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--green); }
 .cot-short-lbl { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--red); }
@@ -2796,7 +2807,7 @@ function renderCOT() {
       const chgIcon  = chg === null ? '' : chg > 0 ? '▲' : chg < 0 ? '▼' : '→';
       return `<div class="cot-row">
         <span class="cot-cur" style="color:${color}">${cur}</span>
-        <div class="cot-pie">${makePie(longPct)}</div>
+        <div class="cot-pie" data-tip="Long ${longPct}% · Short ${100 - longPct}%">${makePie(longPct)}</div>
         <div class="cot-ls-vals">
           <span class="cot-long-lbl">L +${fmtAbs(longVal)}</span>
           <span class="cot-short-lbl">S -${fmtAbs(shortVal)}</span>
