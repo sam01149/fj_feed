@@ -1,6 +1,6 @@
 # Daun Merah — Project Context (Full Reference)
 
-> **Last updated:** 2026-05-10 (session 9)
+> **Last updated:** 2026-05-10 (session 10)
 > **Branch:** main — semua perubahan deployed ke production
 > **Working directory:** `c:\Users\sam\Downloads\Financial_Feed_App`
 > **Production URL:** https://financial-feed-app.vercel.app
@@ -144,6 +144,9 @@ History sizing calculations per device. Redis sorted set `sizing_history:{device
 ### `POST/PATCH/GET/DELETE /api/journal`
 Trade journal CRUD. Soft-delete. Redis `journal:{device_id}:{id}` + sorted set `journal_index:{device_id}`.
 
+### `GET /api/journal?action=analyze&device_id=xxx`
+AI analysis of closed trade performance. Fetches all closed entries, sends to Groq `llama-3.3-70b-versatile`, returns analysis text + stats (win rate, total R, avg R). Cached per device_id for 1 hour (`journal_analysis:{device_id}`). `?force=1` bypasses cache. Requires ≥3 closed trades. Endpoint merged into `journal.js` to stay within Vercel 12-function limit.
+
 ### `GET /api/admin?action=fundamental_get`
 Return semua data fundamental per 8 currency dari Redis (`fundamental:{currency}` HGETALL).
 
@@ -256,6 +259,7 @@ localStorage keys: `daunmerah_v2` (state), `daun_merah_playbook` (active), `daun
 | `sizing_history:{device_id}` | Sorted set sizing calculations | no TTL | `api/sizing-history.js` |
 | `journal:{device_id}:{id}` | Full journal entry JSON | no TTL | `api/journal.js` |
 | `journal_index:{device_id}` | Sorted set entry IDs | no TTL | `api/journal.js` |
+| `journal_analysis:{device_id}` | AI performance analysis per device | 3600s | `api/journal.js` |
 | `prompt_digest` | Override Groq prompt briefing | no TTL | `api/admin.js` |
 | `prompt_bias` | Override Groq prompt CB bias | no TTL | `api/admin.js` |
 | `prompt_thesis` | Override Groq prompt thesis | no TTL | `api/admin.js` |
@@ -366,6 +370,7 @@ generateFundamentalAnalysis() // POST /api/admin?action=fundamental_analysis
 - ✅ **Fundamental display redesign** — dari 2×4 card grid ke full-width per-currency dengan `<table class="fund-table">` 3 kolom (indicator | value | period). Rate ditampilkan bolder di card header. Layout lebih rapi dan mudah dibaca (2026-05-10)
 - ✅ **COT historical storage** — `storeCOTHistory()` di `feeds.js`: fire-and-forget per fetch, lock per reportDate (7d), sorted set `cot_history` rolling 90 hari. Data mulai terkumpul untuk future trend chart (2026-05-10)
 - ✅ **Fundamental scoring system** — normalisasi per-currency (bukan absolute cross-currency), `FUND_SCORE_RULES` 20 indikator dengan dir+threshold, `parseIndVal` handles K/% suffix, `scoreInd` returns +1/-1/null. Score = bullish% dari indikator yang terscore. Confidence badge: High(≥7)/Med(≥4)/Low(<4) dari jumlah indikator yang tersedia — CHF dengan 3 indikator tetap bisa score tinggi tapi badge "Low". Value cells berwarna hijau/merah sesuai sinyal per indikator (2026-05-10)
+- ✅ **AI Journal Analysis** — tombol "ANALISA AI" di tab JURNAL, memanggil `GET /api/journal?action=analyze`. AI (Groq llama-3.3-70b) analisis semua closed trade: pola menang/kalah, kualitas thesis, kelemahan, rekomendasi konkret. Statistik (win rate, total R, avg R) ditampilkan sebagai stat cards. Cache 1 jam per device. `force=1` untuk refresh. Endpoint digabung ke `journal.js` agar tetap di bawah limit 12 function (2026-05-10)
 
 ---
 

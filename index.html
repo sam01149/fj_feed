@@ -178,6 +178,16 @@ body {
 .jn-tab  { background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); padding:8px 14px; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; letter-spacing:.05em; }
 .jn-tab.active { color:var(--pink); border-bottom-color:var(--pink); }
 .jn-close-form { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; margin-top:8px; }
+.jn-ai-btn { display:flex; align-items:center; gap:6px; background:linear-gradient(135deg,rgba(244,114,182,.15),rgba(139,92,246,.15)); border:1px solid rgba(244,114,182,.4); color:#f472b6; padding:9px 14px; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.05em; cursor:pointer; border-radius:4px; margin-bottom:14px; width:100%; justify-content:center; }
+.jn-ai-btn:disabled { opacity:.5; cursor:not-allowed; }
+.jn-ai-panel { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:14px; margin-bottom:14px; display:none; }
+.jn-ai-stat-row { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.jn-ai-stat { background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:8px 12px; text-align:center; flex:1; min-width:60px; }
+.jn-ai-stat-val { font-family:'DM Mono',monospace; font-size:16px; font-weight:700; color:var(--text); }
+.jn-ai-stat-lbl { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); margin-top:2px; letter-spacing:.05em; }
+.jn-ai-body { font-family:'DM Mono',monospace; font-size:11px; color:var(--text-mid); line-height:1.7; white-space:pre-wrap; }
+.jn-ai-body strong,.jn-ai-body b { color:var(--text); font-weight:700; }
+.jn-ai-footer { font-size:9px; color:var(--muted); margin-top:10px; font-family:'DM Mono',monospace; text-align:right; }
 
 /* NAV FILTERS (secondary — only shown on NEWS view) */
 .nav-filters {
@@ -1332,6 +1342,12 @@ body {
     </div>
     <!-- List view -->
     <div id="jnListView">
+      <button class="jn-ai-btn" id="jnAiBtn" onclick="jnRunAnalysis()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        ANALISA AI
+      </button>
+      <!-- AI analysis panel -->
+      <div class="jn-ai-panel" id="jnAiPanel"></div>
       <div style="display:flex;gap:6px;margin-bottom:12px">
         <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('all')" id="jnFAll">SEMUA</button>
         <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('open')" id="jnFOpen">OPEN</button>
@@ -4324,6 +4340,73 @@ async function jnArchive(id) {
     jnLoadEntries();
   } catch(e) {
     console.warn('jnArchive failed:', e.message);
+  }
+}
+
+async function jnRunAnalysis(force = false) {
+  const deviceId = szGetDeviceId();
+  const btn   = document.getElementById('jnAiBtn');
+  const panel = document.getElementById('jnAiPanel');
+  if (!btn || !panel) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Menganalisis...';
+  panel.style.display = 'block';
+  panel.innerHTML = `<div style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;text-align:center;padding:20px">AI sedang membaca jurnal kamu...</div>`;
+
+  try {
+    const url = `/api/journal?action=analyze&device_id=${encodeURIComponent(deviceId)}${force ? '&force=1' : ''}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(40000) });
+    const data = await res.json();
+
+    if (!res.ok) {
+      panel.innerHTML = `<div style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${data.error || 'Gagal menghubungi AI.'}</div>`;
+      return;
+    }
+
+    if (data.insufficient_data) {
+      panel.innerHTML = `<div style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;text-align:center;padding:16px">${data.message}</div>`;
+      return;
+    }
+
+    const winColor = (data.win_rate !== 'N/A' && data.win_rate >= 50) ? 'var(--green)' : 'var(--accent)';
+    const rColor   = (data.total_r !== null && data.total_r >= 0) ? 'var(--green)' : 'var(--accent)';
+    const statsHtml = `<div class="jn-ai-stat-row">
+      <div class="jn-ai-stat">
+        <div class="jn-ai-stat-val">${data.closed_count}</div>
+        <div class="jn-ai-stat-lbl">TRADE</div>
+      </div>
+      <div class="jn-ai-stat">
+        <div class="jn-ai-stat-val" style="color:${winColor}">${data.win_rate !== 'N/A' ? data.win_rate + '%' : '-'}</div>
+        <div class="jn-ai-stat-lbl">WIN RATE</div>
+      </div>
+      <div class="jn-ai-stat">
+        <div class="jn-ai-stat-val" style="color:${rColor}">${data.total_r !== null ? (data.total_r >= 0 ? '+' : '') + data.total_r + 'R' : '-'}</div>
+        <div class="jn-ai-stat-lbl">TOTAL R</div>
+      </div>
+      <div class="jn-ai-stat">
+        <div class="jn-ai-stat-val" style="color:${rColor}">${data.avg_r !== null ? (data.avg_r >= 0 ? '+' : '') + data.avg_r + 'R' : '-'}</div>
+        <div class="jn-ai-stat-lbl">AVG R</div>
+      </div>
+    </div>`;
+
+    // Render markdown bold (**text**) as <strong>
+    const bodyHtml = (data.analysis || '')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    const cacheNote = data.from_cache
+      ? `<span style="color:var(--muted)">Dari cache</span> · <button onclick="jnRunAnalysis(true)" style="background:none;border:none;color:var(--pink);font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;padding:0">Refresh</button>`
+      : '<span style="color:var(--green)">Baru digenerate</span>';
+    const genTime = data.generated_at ? new Date(data.generated_at).toLocaleString('id-ID', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+
+    panel.innerHTML = statsHtml +
+      `<div class="jn-ai-body">${bodyHtml}</div>` +
+      `<div class="jn-ai-footer">${cacheNote} · ${genTime}</div>`;
+  } catch(e) {
+    panel.innerHTML = `<div style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">Timeout atau error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> ANALISA AI`;
   }
 }
 
