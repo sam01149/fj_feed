@@ -1352,6 +1352,7 @@ body {
         <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('all')" id="jnFAll">SEMUA</button>
         <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('open')" id="jnFOpen">OPEN</button>
         <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('closed')" id="jnFClosed">CLOSED</button>
+        <button class="jn-btn-sec" style="font-size:9px" onclick="jnSetFilter('archived')" id="jnFArchived">ARSIP</button>
       </div>
       <div id="jnList"><div style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;text-align:center;padding:24px">Memuat jurnal...</div></div>
     </div>
@@ -4151,10 +4152,10 @@ function jnShowView(v) {
 
 function jnSetFilter(status) {
   jnCurrentFilter = status;
-  ['jnFAll','jnFOpen','jnFClosed'].forEach(id => {
+  ['jnFAll','jnFOpen','jnFClosed','jnFArchived'].forEach(id => {
     document.getElementById(id).classList.remove('active');
   });
-  const map = { all:'jnFAll', open:'jnFOpen', closed:'jnFClosed' };
+  const map = { all:'jnFAll', open:'jnFOpen', closed:'jnFClosed', archived:'jnFArchived' };
   if (map[status]) document.getElementById(map[status]).classList.add('active');
   jnRenderEntries();
 }
@@ -4272,7 +4273,9 @@ function jnRenderEntries() {
     const closeBtn = e.status === 'open'
       ? `<button class="jn-btn-sec" style="font-size:9px" onclick="jnStartClose('${e.id}')">Tutup</button>`
       : '';
-    const archBtn = `<button class="jn-btn-sec" style="font-size:9px;margin-left:4px" onclick="jnArchive('${e.id}')">Arsip</button>`;
+    const archBtn = e.status === 'archived'
+      ? `<button class="jn-btn-sec" style="font-size:9px;margin-left:4px;color:var(--green);border-color:var(--green)" onclick="jnUnarchive('${e.id}')">Pulihkan</button>`
+      : `<button class="jn-btn-sec" style="font-size:9px;margin-left:4px" onclick="jnArchive('${e.id}')">Arsip</button>`;
     return `<div class="jn-card">
       <div class="jn-card-hdr">
         <span class="jn-pair">${e.pair}</span>
@@ -4326,6 +4329,21 @@ async function jnCloseTrade() {
   } catch(e) {
     console.error('jnClose failed:', e.message);
     alert('Gagal menutup trade: ' + e.message);
+  }
+}
+
+async function jnUnarchive(id) {
+  const deviceId = szGetDeviceId();
+  try {
+    const res = await fetch(`/api/journal?device_id=${encodeURIComponent(deviceId)}&id=${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'open' }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    jnLoadEntries();
+  } catch(e) {
+    console.warn('jnUnarchive failed:', e.message);
   }
 }
 
