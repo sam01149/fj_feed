@@ -1201,6 +1201,22 @@ body {
   border-bottom: 1px solid var(--border); flex-direction: column; gap: 8px;
 }
 .tek-mtf-section { padding: 14px 14px 10px; }
+.tek-mtf-bar {
+  display: flex; align-items: center; gap: 10px; padding: 7px 14px;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.tek-mtf-cell { display: flex; align-items: center; gap: 5px; }
+.tek-mtf-lbl { font: 700 9px 'DM Mono',monospace; color: var(--muted); }
+.tek-mtf-sel {
+  background: var(--bg); color: var(--text-mid); border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 5px; font: 10px 'DM Mono',monospace;
+  cursor: pointer; outline: none; width: 54px; transition: border-color .15s, color .15s;
+}
+.tek-mtf-align {
+  margin-left: auto; font: 700 10px 'DM Mono',monospace;
+  padding: 2px 9px; border-radius: 4px; border: 1px solid transparent;
+  transition: all .15s;
+}
 .tek-note-wrap { padding: 4px 0 8px; }
 .tek-note-label { font: 9px 'DM Mono',monospace; color: var(--muted); margin-bottom: 5px; letter-spacing: .08em; text-transform: uppercase; }
 .tek-note-wrap textarea {
@@ -1765,6 +1781,13 @@ body {
   </div>
   <div class="tek-chart-wrap">
     <div id="tekChartContainer"></div>
+  </div>
+  <div class="tek-mtf-bar">
+    <div class="tek-mtf-cell"><span class="tek-mtf-lbl">D1</span><select class="tek-mtf-sel" id="mtfSelD1" onchange="onMtfChange()"><option value="">—</option><option value="bull">Bull</option><option value="bear">Bear</option><option value="neut">Neut</option></select></div>
+    <div class="tek-mtf-cell"><span class="tek-mtf-lbl">H4</span><select class="tek-mtf-sel" id="mtfSelH4" onchange="onMtfChange()"><option value="">—</option><option value="bull">Bull</option><option value="bear">Bear</option><option value="neut">Neut</option></select></div>
+    <div class="tek-mtf-cell"><span class="tek-mtf-lbl">H1</span><select class="tek-mtf-sel" id="mtfSelH1" onchange="onMtfChange()"><option value="">—</option><option value="bull">Bull</option><option value="bear">Bear</option><option value="neut">Neut</option></select></div>
+    <div class="tek-mtf-cell"><span class="tek-mtf-lbl">M15</span><select class="tek-mtf-sel" id="mtfSelM15" onchange="onMtfChange()"><option value="">—</option><option value="bull">Bull</option><option value="bear">Bear</option><option value="neut">Neut</option></select></div>
+    <div class="tek-mtf-align" id="mtfAlignBadge"></div>
   </div>
   <div class="tek-mtf-section">
     <div class="tek-note-wrap">
@@ -4712,11 +4735,61 @@ let tekNotes = {};
 let tvScriptLoaded = false;
 let tekInited = false;
 
+const MTF_SELS = [
+  { id:'mtfSelD1', key:'D1' }, { id:'mtfSelH4', key:'H4' },
+  { id:'mtfSelH1', key:'H1' }, { id:'mtfSelM15', key:'M15' },
+];
+let tekMtf = {};
+
 function loadTekNotes() {
   try {
     const n = localStorage.getItem('tek_notes');
     if (n) tekNotes = JSON.parse(n);
+    const m = localStorage.getItem('tek_mtf_v2');
+    if (m) tekMtf = JSON.parse(m);
   } catch(e) {}
+}
+
+function onMtfChange() {
+  if (!tekMtf[tekPair]) tekMtf[tekPair] = {};
+  MTF_SELS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (!el) return;
+    tekMtf[tekPair][s.key] = el.value;
+    const col = el.value === 'bull' ? '#27ae60' : el.value === 'bear' ? '#c0392b' : el.value === 'neut' ? '#7f8c8d' : null;
+    el.style.borderColor = col || '';
+    el.style.color = col ? (el.value === 'bull' ? '#4caf50' : el.value === 'bear' ? '#e74c3c' : '#95a5a6') : '';
+  });
+  localStorage.setItem('tek_mtf_v2', JSON.stringify(tekMtf));
+  renderMtfAlign();
+}
+
+function renderMtfAlign() {
+  const badge = document.getElementById('mtfAlignBadge');
+  if (!badge) return;
+  const vals = MTF_SELS.map(s => { const el = document.getElementById(s.id); return el ? el.value : ''; }).filter(v => v);
+  if (!vals.length) { badge.textContent = ''; badge.style.cssText = ''; return; }
+  const bull = vals.filter(v => v === 'bull').length;
+  const bear = vals.filter(v => v === 'bear').length;
+  const dom = bull > bear ? 'BULLISH' : bear > bull ? 'BEARISH' : 'MIXED';
+  const fg = dom === 'BULLISH' ? '#4caf50' : dom === 'BEARISH' ? '#e74c3c' : '#95a5a6';
+  const bg = dom === 'BULLISH' ? 'rgba(39,174,96,.15)' : dom === 'BEARISH' ? 'rgba(192,57,43,.15)' : 'rgba(127,140,141,.15)';
+  const br = dom === 'BULLISH' ? '#27ae60' : dom === 'BEARISH' ? '#c0392b' : '#7f8c8d';
+  badge.textContent = dom;
+  badge.style.cssText = 'margin-left:auto;font:700 10px DM Mono,monospace;padding:2px 9px;border-radius:4px;color:' + fg + ';background:' + bg + ';border:1px solid ' + br;
+}
+
+function loadMtfForPair() {
+  const pairData = tekMtf[tekPair] || {};
+  MTF_SELS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (!el) return;
+    el.value = pairData[s.key] || '';
+    const col = el.value === 'bull' ? '#27ae60' : el.value === 'bear' ? '#c0392b' : el.value === 'neut' ? '#7f8c8d' : null;
+    el.style.borderColor = col || '';
+    el.style.color = col ? (el.value === 'bull' ? '#4caf50' : el.value === 'bear' ? '#e74c3c' : '#95a5a6') : '';
+  });
+  renderMtfAlign();
 }
 
 function saveTekNote() {
@@ -4783,6 +4856,7 @@ function onTekPairChange() {
   tekPair = document.getElementById('tekPairSelect').value;
   const note = document.getElementById('tekNote');
   if (note) note.value = tekNotes[tekPair] || '';
+  loadMtfForPair();
   renderTekNews();
   createTVChart();
 }
@@ -4800,6 +4874,7 @@ function initTeknikal() {
   if (tf) tf.value = tekTF;
   const note = document.getElementById('tekNote');
   if (note) note.value = tekNotes[tekPair] || '';
+  loadMtfForPair();
   renderTekNews();
   createTVChart();
 }
