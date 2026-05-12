@@ -1236,6 +1236,25 @@ body {
   font: 12px 'DM Mono',monospace; resize: vertical; outline: none; transition: border-color .15s;
 }
 .tek-note-wrap textarea:focus { border-color: #38bdf8; }
+.tek-news-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0 6px; border-top: 1px solid var(--border); margin-top: 8px;
+}
+.tek-news-hdr-title { font: 700 9px 'Syne',sans-serif; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.tek-news-hdr-pair { font: 700 9px 'DM Mono',monospace; color: #38bdf8; }
+.tek-news-empty { font: 10px 'DM Mono',monospace; color: var(--muted); padding: 10px 0 4px; }
+.tek-news-item {
+  padding: 8px 0 7px; border-bottom: 1px solid rgba(34,34,32,.5); cursor: pointer;
+}
+.tek-news-item:last-child { border-bottom: none; }
+.tek-news-item:hover .tek-news-title { color: #38bdf8; }
+.tek-news-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.tek-news-time { font: 9px 'DM Mono',monospace; color: var(--muted); }
+.tek-news-cat {
+  font: 700 8px 'DM Mono',monospace; padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.tek-news-title { font: 11px 'DM Mono',monospace; color: var(--text); line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -1730,6 +1749,7 @@ body {
       <div class="tek-note-label">Catatan analisa</div>
       <textarea id="tekNote" placeholder="Key levels, setup yang dipantau, atau catatan sesi..." oninput="saveTekNote()"></textarea>
     </div>
+    <div id="tekNewsSection" style="margin-top:6px"></div>
   </div>
 </div>
 
@@ -4598,6 +4618,65 @@ async function szLoadHistory() {
 }
 
 // ── TEKNIKAL ─────────────────────────────────────────────
+const TEK_PAIR_KEYWORDS = {
+  XAUUSD: ['gold','xau','bullion','precious','safe haven','silver','fed','fomc','rate','powell','inflation','real yield',
+            'iran','war','sanction','trump','tariff','china','russia','ukraine','missile','ceasefire','nato','geopolit','haven','risk off'],
+  EURUSD: ['euro','eur/','ecb','lagarde','eurozone','europe','germany','german','france','french','italy','italian',
+            'fed','fomc','dollar','dxy','powell','rate cut','rate hike'],
+  GBPUSD: ['gbp','pound','sterling','boe','bailey','uk ','britain','england','scotland','brexit',
+            'fed','fomc','dollar','dxy','powell'],
+  USDJPY: ['jpy','yen','boj','ueda','japan','japanese','fed','fomc','dollar','powell','yield','treasury','bond'],
+  AUDUSD: ['aud','australia','aussie','rba','iron ore','china','chinese','commodity','copper','fed','fomc','dollar','powell'],
+  NZDUSD: ['nzd','new zealand','rbnz','kiwi','fed','fomc','dollar','powell'],
+  USDCAD: ['cad','canada','canadian','boc','oil','crude','wti','brent','opec','barrel','fed','fomc','dollar','powell'],
+  USDCHF: ['chf','swiss','switzerland','snb','franc','fed','fomc','dollar','powell','safe haven','haven'],
+};
+const TEK_CAT_COLOR = {
+  'market-moving':'#e74c3c','forex':'#38bdf8','macro':'#a78bfa','econ-data':'#27ae60',
+  'energy':'#e67e22','geopolitical':'#fb923c','commodities':'#f59e0b',
+  'bonds':'#60a5fa','equities':'#4caf50','crypto':'#f472b6','indexes':'#94a3b8',
+};
+
+function renderTekNews() {
+  const sec = document.getElementById('tekNewsSection');
+  if (!sec) return;
+  if (!allItems || allItems.length === 0) {
+    sec.innerHTML = '<div class="tek-news-hdr"><span class="tek-news-hdr-title">Berita Terkait</span></div>'
+      + '<div class="tek-news-empty">Fetch news terlebih dahulu di tab NEWS.</div>';
+    return;
+  }
+  const kws = TEK_PAIR_KEYWORDS[tekPair] || [];
+  const matches = allItems.filter(item => {
+    const t = item.title.toLowerCase();
+    return kws.some(k => t.includes(k));
+  }).slice(0, 12);
+
+  const pairLabel = tekPair.slice(0, 3) + '/' + tekPair.slice(3);
+  let html = '<div class="tek-news-hdr">'
+    + '<span class="tek-news-hdr-title">Berita Terkait</span>'
+    + '<span class="tek-news-hdr-pair">' + pairLabel + '</span>'
+    + '</div>';
+
+  if (matches.length === 0) {
+    html += '<div class="tek-news-empty">Tidak ada berita relevan saat ini.</div>';
+  } else {
+    html += matches.map(item => {
+      const cat = detectCat(item.title);
+      const col = TEK_CAT_COLOR[cat] || '#888';
+      const bg = col + '22';
+      const safeLink = (item.link || '').replace(/'/g, "\\'");
+      return '<div class="tek-news-item" onclick="openLink(\'' + safeLink + '\')">'
+        + '<div class="tek-news-meta">'
+        + '<span class="tek-news-time">' + fmtTime(item.pubDate) + '</span>'
+        + '<span class="tek-news-cat" style="background:' + bg + ';color:' + col + '">' + cat.replace('-',' ') + '</span>'
+        + '</div>'
+        + '<div class="tek-news-title">' + escHtml(item.title) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+  sec.innerHTML = html;
+}
+
 const TEK_TFS = ['D','240','60','15'];
 const TEK_TF_MAP = { 'D':'D1', '240':'H4', '60':'H1', '15':'M15' };
 const TEK_TV_SYM = {
@@ -4730,6 +4809,7 @@ function onTekPairChange() {
   const note = document.getElementById('tekNote');
   if (note) note.value = tekNotes[tekPair] || '';
   renderTekMtfTable();
+  renderTekNews();
   createTVChart();
 }
 
@@ -4749,6 +4829,7 @@ function initTeknikal() {
   const note = document.getElementById('tekNote');
   if (note) note.value = tekNotes[tekPair] || '';
   renderTekMtfTable();
+  renderTekNews();
   createTVChart();
 }
 
