@@ -514,54 +514,92 @@ body {
 .fund-panel { padding: 10px 12px 24px; }
 .fund-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .fund-title { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-family: 'DM Mono', monospace; }
 .fund-meta  { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; }
-.fund-grid  { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+
+/* Strength Ranking Overview */
+.fund-rank-section {
+  margin-bottom: 12px;
+}
+.fund-rank-label {
+  font-size: 8px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  font-family: 'DM Mono', monospace; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fund-rank-label span { font-size: 7px; color: var(--muted); opacity: .6; }
+.fund-rank-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+}
+.frnk-cell {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 7px;
+  display: flex; flex-direction: column; gap: 3px;
+  border-left-width: 2px !important;
+  cursor: default; transition: border-color .15s;
+}
+.frnk-cell:hover { border-color: rgba(255,255,255,.15); }
+.frnk-top { display: flex; align-items: center; justify-content: space-between; gap: 3px; }
+.frnk-rank { font-size: 8px; color: var(--muted); font-family: 'DM Mono', monospace; opacity: .6; }
+.frnk-cur  { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; }
+.frnk-badge { font-size: 7px; padding: 1px 4px; border-radius: 2px; letter-spacing: .3px; white-space: nowrap; }
+.frnk-badge.bull  { background: rgba(0,200,150,.15); color: var(--green); }
+.frnk-badge.bear  { background: rgba(192,57,43,.15); color: var(--red); }
+.frnk-badge.neut  { background: rgba(255,255,255,.06); color: var(--muted); }
+.frnk-badge.nd    { background: transparent; color: var(--muted); }
+.frnk-bar-bg { width: 100%; height: 2px; background: rgba(255,255,255,.07); border-radius: 1px; }
+.frnk-bar-fill { height: 100%; border-radius: 1px; transition: width .5s; }
+.frnk-rate { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--muted); margin-top: 1px; }
+
+/* Cards grid — 2 columns on mobile */
+.fund-grid  {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 12px;
+}
 .fund-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px 12px 10px; position: relative;
+  border-radius: 8px; padding: 8px 9px 7px; position: relative;
   border-left-width: 3px !important;
 }
-.fund-card-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-.fund-cur  { font-size: 13px; font-weight: 700; font-family: 'Syne', sans-serif; }
-.fund-rate { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text); }
+.fund-card-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+.fund-cur  { font-size: 12px; font-weight: 700; font-family: 'Syne', sans-serif; }
+.fund-rate { font-size: 10px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--muted); }
 .fund-table { width: 100%; border-collapse: collapse; }
-.fund-table tr { border-bottom: 1px solid rgba(255,255,255,.04); }
+.fund-table tr { border-bottom: 1px solid rgba(255,255,255,.03); }
 .fund-table tr:last-child { border-bottom: none; }
-.fund-table td { padding: 3px 0; vertical-align: baseline; font-family: 'DM Mono', monospace; }
-.fund-td-ind { font-size: 9px; color: var(--muted); letter-spacing: .2px; }
-.fund-td-val { font-size: 10px; color: var(--text); text-align: right; padding-left: 8px; white-space: nowrap; width: 80px; }
+.fund-table td { padding: 2px 0; vertical-align: baseline; font-family: 'DM Mono', monospace; }
+.fund-td-ind { font-size: 8px; color: var(--muted); letter-spacing: .1px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fund-td-val { font-size: 9px; color: var(--text); text-align: right; padding-left: 4px; white-space: nowrap; width: 56px; }
 .fund-td-val.no-data { color: var(--muted); }
 .fund-td-val.bull { color: var(--green); }
 .fund-td-val.bear { color: var(--red); }
-.fund-td-per { font-size: 8px; color: var(--muted); opacity: .7; text-align: right; padding-left: 10px; white-space: nowrap; width: 72px; }
-.fund-score-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.fund-score-bar  { flex: 1; height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
-.fund-score-fill { height: 100%; border-radius: 2px; transition: width .4s; }
-.fund-score-num  { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 700; white-space: nowrap; }
-.fund-score-conf { font-family: 'DM Mono', monospace; font-size: 8px; padding: 2px 6px; border-radius: 3px; letter-spacing: .3px; white-space: nowrap; }
+.fund-td-per { display: none; }
+.fund-score-row { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+.fund-score-bar  { flex: 1; height: 2px; background: rgba(255,255,255,.07); border-radius: 1px; overflow: hidden; }
+.fund-score-fill { height: 100%; border-radius: 1px; transition: width .4s; }
+.fund-score-num  { font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 700; white-space: nowrap; }
+.fund-score-conf { font-family: 'DM Mono', monospace; font-size: 7px; padding: 1px 4px; border-radius: 2px; letter-spacing: .2px; white-space: nowrap; }
 .fund-score-conf.high { background: rgba(0,200,150,.12); color: var(--green); }
 .fund-score-conf.med  { background: rgba(255,211,42,.10); color: var(--yellow); }
 .fund-score-conf.low  { background: rgba(255,255,255,.06); color: var(--muted); }
 /* AI Analysis section */
 .fund-analysis-wrap { margin-top: 4px; }
 .fund-analysis-btn {
-  width: 100%; padding: 10px; border-radius: 10px;
-  background: rgba(192,57,43,.08); border: 1px solid rgba(192,57,43,.3);
+  width: 100%; padding: 9px; border-radius: 8px;
+  background: rgba(192,57,43,.06); border: 1px solid rgba(192,57,43,.25);
   color: var(--accent); font-family: 'DM Mono', monospace; font-size: 10px;
   letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: all .2s;
 }
-.fund-analysis-btn:hover { background: rgba(192,57,43,.14); }
+.fund-analysis-btn:hover { background: rgba(192,57,43,.12); }
 .fund-analysis-btn:disabled { opacity: .5; cursor: not-allowed; }
 .fund-analysis-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px; margin-top: 10px;
+  border-radius: 8px; padding: 12px; margin-top: 8px;
 }
 .fund-analysis-header {
   font-size: 8px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase;
-  font-family: 'DM Mono', monospace; margin-bottom: 10px;
+  font-family: 'DM Mono', monospace; margin-bottom: 8px;
   display: flex; align-items: center; justify-content: space-between;
 }
 .fund-analysis-text {
@@ -575,34 +613,40 @@ body {
 .fund-refresh-btn:hover { color: var(--text); }
 .fund-refresh-btn.spinning svg { animation: spin .7s linear infinite; }
 
+@media (min-width: 600px) {
+  .fund-grid { grid-template-columns: repeat(4, 1fr); }
+  .fund-rank-grid { grid-template-columns: repeat(8, 1fr); }
+  .fund-td-per { display: table-cell; font-size: 7px; color: var(--muted); opacity: .6; text-align: right; padding-left: 6px; white-space: nowrap; width: 52px; }
+}
+
 /* ── CALENDAR TAB ──*/
 
 /* CAL TOOLBAR */
 .cal-toolbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px 6px; gap: 8px; flex-wrap: wrap;
+  padding: 7px 12px 5px; gap: 6px; flex-wrap: wrap;
 }
-.cal-filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.cal-filter-group { display: flex; gap: 4px; flex-wrap: wrap; }
 .cal-filter-btn {
-  padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border);
+  padding: 3px 8px; border-radius: 20px; border: 1px solid var(--border);
   background: transparent; color: var(--muted);
-  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .4px;
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .3px;
   cursor: pointer; transition: all .15s; text-transform: uppercase;
 }
 .cal-filter-btn.active-high   { border-color: #ff4757; color: #ff4757; background: rgba(255,71,87,.1); }
 .cal-filter-btn.active-medium { border-color: var(--yellow); color: var(--yellow); background: rgba(255,211,42,.1); }
 .cal-filter-btn.active-all    { border-color: var(--accent); color: var(--accent); background: rgba(192,57,43,.08); }
 .cal-count-badge {
-  font-size: 9px; color: var(--muted); padding: 4px 0;
+  font-size: 8px; color: var(--muted); padding: 3px 0;
   letter-spacing: .3px;
 }
 
 /* COUNTDOWN TIMER */
 .cal-countdown-wrap {
-  margin: 10px 12px 4px;
+  margin: 8px 12px 2px;
 }
 .cal-countdown {
-  padding: 10px 14px; border-radius: 10px;
+  padding: 8px 12px; border-radius: 8px;
   background: var(--surface); border: 1px solid var(--border);
   display: flex; align-items: center; gap: 10px;
   transition: border-color .2s, background .2s;
@@ -616,19 +660,19 @@ body {
   0%,100% { box-shadow: 0 0 0 0 rgba(255,71,87,0); }
   50%      { box-shadow: 0 0 8px 2px rgba(255,71,87,.25); }
 }
-.cal-countdown-icon { font-size: 14px; flex-shrink: 0; }
+.cal-countdown-icon { font-size: 13px; flex-shrink: 0; }
 .cal-countdown-body { flex: 1; min-width: 0; }
 .cal-countdown-label {
-  font-size: 8px; color: var(--muted); letter-spacing: .6px;
-  text-transform: uppercase; font-family: 'DM Mono', monospace; margin-bottom: 3px;
+  font-size: 7px; color: var(--muted); letter-spacing: .6px;
+  text-transform: uppercase; font-family: 'DM Mono', monospace; margin-bottom: 2px;
 }
 .cal-countdown-name {
-  font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text);
+  font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cal-countdown-name.warning { color: #ff4757; }
 .cal-countdown-time {
-  font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace;
+  font-size: 16px; font-weight: 700; font-family: 'DM Mono', monospace;
   color: var(--text); flex-shrink: 0; letter-spacing: -.5px;
 }
 .cal-countdown-time.warning { color: #ff4757; }
@@ -641,29 +685,29 @@ body {
   line-height: 1.4; letter-spacing: .3px;
 }
 
-.cal-panel-inner { padding: 4px 12px 16px; }
-.cal-date-group { margin-bottom: 20px; }
+.cal-panel-inner { padding: 2px 12px 16px; }
+.cal-date-group { margin-bottom: 14px; }
 .cal-date-label {
-  font-size: 9px; color: var(--muted); letter-spacing: 1px;
-  text-transform: uppercase; padding: 8px 0 10px;
-  border-bottom: 1px solid var(--border); margin-bottom: 10px;
+  font-size: 8px; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; padding: 6px 0 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 7px;
   display: flex; align-items: center; justify-content: space-between;
 }
-.cal-date-count { font-size: 9px; color: var(--muted); }
+.cal-date-count { font-size: 8px; color: var(--muted); }
 
 /* EVENT CARD */
 .cal-event {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 0; margin-bottom: 8px;
+  border-radius: 8px; padding: 0; margin-bottom: 6px;
   position: relative; overflow: hidden;
   transition: border-color .15s;
 }
-.cal-event:hover { border-color: rgba(255,255,255,.12); }
+.cal-event:hover { border-color: rgba(255,255,255,.1); }
 .cal-event::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
   width: 3px; border-radius: 3px 0 0 3px;
 }
-.cal-event.impact-high::before   { background: #ff4757; box-shadow: 2px 0 8px rgba(255,71,87,.25); }
+.cal-event.impact-high::before   { background: #ff4757; box-shadow: 2px 0 6px rgba(255,71,87,.2); }
 .cal-event.impact-medium::before { background: var(--yellow); }
 
 .cal-cur-USD::before { background: #60a5fa !important; }
@@ -676,36 +720,36 @@ body {
 .cal-cur-CHF::before { background: var(--red) !important; }
 
 .cal-event-main {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px 10px 16px;
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 12px 8px 14px;
 }
-.cal-time-col { flex-shrink: 0; min-width: 54px; }
+.cal-time-col { flex-shrink: 0; min-width: 48px; }
 .cal-time {
-  font-family: 'DM Mono', monospace; font-size: 12px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
   color: var(--accent); font-weight: 400; line-height: 1;
 }
 .cal-time-label {
-  font-size: 8px; color: var(--muted); margin-top: 3px; letter-spacing: .3px;
+  font-size: 7px; color: var(--muted); margin-top: 2px; letter-spacing: .3px;
 }
 .cal-body { flex: 1; min-width: 0; }
 .cal-event-header {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 8px; margin-bottom: 6px;
+  gap: 6px; margin-bottom: 4px;
 }
 .cal-event-name {
-  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 400;
-  color: var(--text); line-height: 1.35; flex: 1;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 400;
+  color: var(--text); line-height: 1.3; flex: 1;
 }
-.cal-badges { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.cal-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .cal-cur-tag {
   display: inline-flex; align-items: center;
-  font-size: 9px; padding: 2px 7px; border-radius: 3px;
-  letter-spacing: .5px; font-weight: 400;
+  font-size: 8px; padding: 2px 5px; border-radius: 3px;
+  letter-spacing: .4px; font-weight: 400;
   background: rgba(255,255,255,.06); color: var(--text);
 }
 .cal-impact-badge {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 8px; padding: 2px 6px; border-radius: 3px; letter-spacing: .5px;
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 7px; padding: 2px 5px; border-radius: 3px; letter-spacing: .4px;
 }
 .cal-impact-badge.high   { background: rgba(255,71,87,.15); color: #ff4757; }
 .cal-impact-badge.medium { background: rgba(255,211,42,.12); color: var(--yellow); }
@@ -714,95 +758,90 @@ body {
 .cal-data-row {
   display: flex; gap: 0;
   border-top: 1px solid var(--border);
-  background: rgba(0,0,0,.15);
+  background: rgba(0,0,0,.12);
 }
 .cal-data-cell {
-  flex: 1; padding: 7px 10px; text-align: center;
+  flex: 1; padding: 5px 8px; text-align: center;
   border-right: 1px solid var(--border);
 }
 .cal-data-cell:last-child { border-right: none; }
 .cal-data-label {
-  font-size: 8px; color: var(--muted); letter-spacing: .5px;
-  text-transform: uppercase; margin-bottom: 3px;
+  font-size: 7px; color: var(--muted); letter-spacing: .4px;
+  text-transform: uppercase; margin-bottom: 2px;
 }
 .cal-data-val {
-  font-family: 'DM Mono', monospace; font-size: 12px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
   color: var(--text); font-weight: 400;
 }
 .cal-data-val.actual-beat   { color: var(--green); }
 .cal-data-val.actual-miss   { color: var(--red); }
 .cal-data-val.actual-inline { color: var(--yellow); }
-.cal-data-val.no-data       { color: var(--muted); font-size: 10px; }
+.cal-data-val.no-data       { color: var(--muted); font-size: 9px; }
 
 /* CURRENCY LEGEND */
 .cal-legend {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  padding: 8px 12px 4px;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 6px 12px 3px;
 }
 .cal-legend-item {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 9px; color: var(--muted); letter-spacing: .3px;
+  display: flex; align-items: center; gap: 3px;
+  font-size: 8px; color: var(--muted); letter-spacing: .2px;
 }
 .cal-legend-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 5px; height: 5px; border-radius: 50%;
 }
 
-.cal-empty { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.cal-empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 
 /* ── CENTRAL BANK TRACKER ── */
 .cb-section {
-  padding: 10px 12px 4px;
+  padding: 8px 12px 6px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 .cb-section-title {
-  font-size: 9px; color: var(--muted); letter-spacing: 1px;
-  text-transform: uppercase; margin-bottom: 10px;
+  font-size: 8px; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 8px;
   display: flex; align-items: center; justify-content: space-between;
 }
 .cb-section-title span { color: var(--green); }
-.cb-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 6px; margin-bottom: 10px;
-}
-.cb-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 9px 10px;
-  position: relative; overflow: hidden;
-  transition: border-color .15s;
-}
-.cb-card::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-  width: 2px; border-radius: 2px 0 0 2px;
-}
-.cb-USD::before { background: #60a5fa; }
-.cb-EUR::before { background: var(--accent); }
-.cb-GBP::before { background: var(--purple); }
-.cb-JPY::before { background: var(--yellow); }
-.cb-CAD::before { background: var(--orange); }
-.cb-AUD::before { background: var(--green); }
-.cb-NZD::before { background: #34d399; }
-.cb-CHF::before { background: var(--red); }
 
-.cb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
-.cb-currency { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
-.cb-short { font-size: 8px; color: var(--muted); letter-spacing: .3px; margin-top: 1px; }
-.cb-rate {
-  font-family: 'DM Mono', monospace; font-size: 15px;
-  color: var(--text); font-weight: 400; margin-bottom: 4px;
+/* New compact table layout */
+.cb-table {
+  width: 100%; border-collapse: collapse; margin-bottom: 6px;
 }
-.cb-rate-label { font-size: 7px; color: var(--muted); letter-spacing: .3px; margin-bottom: 6px; }
+.cb-table tr {
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.cb-table tr:last-child { border-bottom: none; }
+.cb-table td { padding: 5px 4px; vertical-align: middle; font-family: 'DM Mono', monospace; }
+.cb-td-cur {
+  width: 36px; font-family: 'Syne', sans-serif; font-size: 11px;
+  font-weight: 700; padding-left: 8px; position: relative;
+}
+.cb-td-cur::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%); width: 2px; height: 16px;
+  border-radius: 1px;
+}
+.cb-td-rate {
+  width: 44px; font-size: 11px; font-weight: 400; color: var(--text); text-align: right;
+}
+.cb-td-dec { width: 52px; text-align: center; }
+.cb-td-bias { }
+
+/* Keep badge styles */
 .cb-decision {
-  font-size: 8px; padding: 2px 6px; border-radius: 3px;
-  letter-spacing: .4px; display: inline-block; margin-bottom: 5px;
+  font-size: 7px; padding: 2px 5px; border-radius: 3px;
+  letter-spacing: .3px; display: inline-block;
 }
 .cb-decision.hold { background: rgba(255,255,255,.06); color: var(--muted); }
 .cb-decision.cut  { background: rgba(0,200,150,.12); color: var(--green); }
 .cb-decision.hike { background: rgba(255,71,87,.12); color: #ff4757; }
 
 .cb-bias {
-  font-size: 8px; padding: 2px 6px; border-radius: 3px;
-  letter-spacing: .3px; display: inline-block;
+  font-size: 7px; padding: 2px 5px; border-radius: 3px;
+  letter-spacing: .2px; display: inline-block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 100%;
 }
@@ -816,7 +855,10 @@ body {
 .cb-bias.split            { background: rgba(167,139,250,.12); color: var(--purple); }
 .cb-bias.unknown          { background: rgba(255,255,255,.04); color: var(--muted); font-style: italic; }
 
-.cb-updated { font-size: 7px; color: var(--muted); margin-top: 4px; }
+/* Legacy card classes — kept for JS compat, hidden */
+.cb-grid    { display: none; }
+.cb-card    { display: none; }
+.cb-updated { display: none; }
 
 .cal-refresh-btn {
   display: flex; align-items: center; gap: 5px;
@@ -854,16 +896,12 @@ body {
   .ringkasan-inner { padding: 20px 24px 28px; max-width: 860px; margin: 0 auto; }
   .ringkasan-card { padding: 20px 24px; }
   .ringkasan-text { font-size: 14px; line-height: 1.8; }
-  .cb-section { padding: 14px 24px 8px; }
-  .cb-grid { grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .cb-card { padding: 12px 14px; }
-  .cb-currency { font-size: 15px; }
-  .cb-rate { font-size: 17px; }
-  .cal-toolbar { padding: 12px 24px 8px; }
-  .cal-panel-inner { padding: 6px 24px 24px; }
-  .cal-event-main { padding: 14px 18px 12px 20px; }
-  .cal-event-name { font-size: 14px; }
-  .cal-time { font-size: 13px; }
+  .cb-section { padding: 10px 24px 8px; }
+  .cal-toolbar { padding: 9px 24px 7px; }
+  .cal-panel-inner { padding: 4px 24px 24px; }
+  .cal-event-main { padding: 10px 16px 9px 18px; }
+  .cal-event-name { font-size: 13px; }
+  .cal-time { font-size: 12px; }
   .cot-panel-inner { padding: 16px 24px 32px; max-width: 700px; margin: 0 auto; }
   .cot-row { grid-template-columns: 50px 1fr auto auto; gap: 12px; padding: 7px 0; }
   .cot-cur { font-size: 13px; }
@@ -873,10 +911,6 @@ body {
 }
 
 @media (max-width: 480px) {
-  .cb-grid  { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .cb-card { padding: 8px 10px; }
-  .cb-currency { font-size: 12px; }
-  .cb-rate { font-size: 14px; }
   .stats-bar .stat { padding: 7px 10px; }
   .stat-val { font-size: 15px; }
   .nvtab { padding: 10px 11px; font-size: 9px; }
@@ -1278,12 +1312,12 @@ body {
   </div>
   <div class="cb-section" id="cbSection">
     <div class="cb-section-title">
-      <span>Central Bank Tracker</span>
+      <span>Central Banks</span>
       <span id="cbUpdatedAt" style="color:var(--muted);font-size:8px"></span>
     </div>
-    <div class="cb-grid" id="cbGrid">
-      <div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--muted);font-size:11px">
-        Bias akan diperbarui otomatis saat Generate Ringkasan
+    <div id="cbGrid">
+      <div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace">
+        Bias diperbarui otomatis saat Generate Ringkasan
       </div>
     </div>
   </div>
@@ -1634,6 +1668,14 @@ body {
           </svg>
         </button>
       </div>
+    </div>
+    <!-- Strength Ranking Overview -->
+    <div class="fund-rank-section" id="fundRankSection" style="display:none">
+      <div class="fund-rank-label">
+        Currency Strength Ranking
+        <span>Strongest → Weakest</span>
+      </div>
+      <div class="fund-rank-grid" id="fundRankGrid"></div>
     </div>
     <div class="fund-grid" id="fundGrid">
       <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-size:11px">Memuat data fundamental...</div>
@@ -2411,99 +2453,66 @@ function renderCBTracker() {
     'Dovish':           'dovish',
     'Split':            'split',
   };
+  const CONF_COL = { 'High': '#27ae60', 'Medium': '#e67e22', 'Low': '#c0392b' };
+  const CUR_COL  = { USD:'#60a5fa', EUR:'#c0392b', GBP:'#a78bfa', JPY:'#ffd32a', CAD:'#ff6b35', AUD:'#00c896', NZD:'#34d399', CHF:'#ff4757' };
 
-  grid.innerHTML = cbData.map(cb => {
-    const decisionText = cb.last_bps > 0
-      ? `+${cb.last_bps}bps Hike`
-      : cb.last_bps < 0
-      ? `${cb.last_bps}bps Cut`
-      : 'Hold';
+  const rows = cbData.map(cb => {
+    const decisionText  = cb.last_bps > 0 ? '+' + cb.last_bps + 'bps' : cb.last_bps < 0 ? cb.last_bps + 'bps' : 'Hold';
     const decisionClass = cb.last_bps > 0 ? 'hike' : cb.last_bps < 0 ? 'cut' : 'hold';
+    const biasLabel     = cb.bias || '—';
+    const biasClass     = cb.bias ? (BIAS_CLASS[cb.bias] || 'unknown') : 'unknown';
+    const col           = CUR_COL[cb.currency] || '#888';
 
-    // Meeting staleness — warn trader if meeting metadata may be outdated
+    const liveDot = cb.rate_source && cb.rate_source !== 'fallback'
+      ? '<span style="font-size:9px;color:var(--green);margin-left:3px" title="Live">●</span>'
+      : '<span style="font-size:9px;color:var(--muted);margin-left:3px" title="Fallback">○</span>';
+
+    const ry = realYieldsData && realYieldsData[cb.currency];
+    let realHtml = '';
+    if (ry && ry.real != null) {
+      const rySign  = ry.real >= 0 ? '+' : '';
+      const ryColor = ry.stale ? 'var(--yellow)' : (ry.real >= 0 ? 'var(--green)' : 'var(--accent)');
+      realHtml = '<br><span style="font-size:7px;color:' + ryColor + '" title="Real = Nom - Inf Est">real ' + rySign + ry.real.toFixed(2) + '%</span>';
+    }
+
+    const confDot = cb.confidence
+      ? '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:' + (CONF_COL[cb.confidence] || '#888') + ';margin-left:4px;vertical-align:middle;" title="' + cb.confidence + ' confidence"></span>'
+      : '';
+
+    let pathHtml = '';
+    if (cb.currency === 'USD' && ratePathData && ratePathData.USD) {
+      const rp = ratePathData.USD;
+      const nm = rp.next_meetings && rp.next_meetings[0];
+      if (nm) {
+        const holdPct = Math.round((nm.prob_hold || 0) * 100);
+        const cutPct  = Math.round((nm.prob_cut25 || 0) * 100);
+        pathHtml = '<br><span style="font-size:7px;color:var(--muted)" title="Heuristik">H' + holdPct + '%/C' + cutPct + '%</span>';
+      }
+    }
+
     const daysSinceMeeting = cb.last_meeting
       ? Math.floor((Date.now() - new Date(cb.last_meeting).getTime()) / 86400000)
       : null;
     const meetingStale = daysSinceMeeting !== null && daysSinceMeeting > 45;
-
-    const biasLabel = cb.bias || '—';
-    const biasClass = cb.bias ? (BIAS_CLASS[cb.bias] || 'unknown') : 'unknown';
-
-    const CONFIDENCE_COLOR = { 'High': '#27ae60', 'Medium': '#e67e22', 'Low': '#c0392b' };
-    const confidenceDot = cb.confidence
-      ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${CONFIDENCE_COLOR[cb.confidence] || '#6b6860'};margin-left:5px;vertical-align:middle;box-shadow:0 0 4px ${CONFIDENCE_COLOR[cb.confidence] || '#6b6860'}55;" title="${cb.confidence} confidence"></span>`
+    const meetingHtml = cb.last_meeting
+      ? '<span style="font-size:7px;color:' + (meetingStale ? 'var(--accent)' : 'var(--muted)') + '">' + (meetingStale ? '⚠ ' : '') + cb.last_meeting + '</span>'
       : '';
 
-    const updatedStr = cb.bias_updated
-      ? fmtCBTime(cb.bias_updated)
-      : '';
-
-    return `
-      <div class="cb-card cb-${cb.currency}">
-        <div class="cb-header">
-          <div>
-            <div class="cb-currency">${cb.currency}</div>
-            <div class="cb-short">${cb.short}</div>
-          </div>
-        </div>
-        <div class="cb-rate">
-          ${cb.rate.toFixed(2)}%
-          ${cb.rate_source && cb.rate_source !== 'fallback'
-            ? `<span style="font-size:8px;color:var(--green);margin-left:5px;vertical-align:middle;" title="Live dari sumber resmi bank sentral">●</span>`
-            : `<span style="font-size:8px;color:var(--muted);margin-left:5px;vertical-align:middle;" title="Data hardcoded — scraping gagal">○</span>`}
-          ${cb.rate_stale
-            ? `<span style="font-size:8px;color:var(--yellow);margin-left:3px;vertical-align:middle;" title="Live rate berbeda dari fallback — mungkin ada keputusan baru">!</span>`
-            : ''}
-        </div>
-        <div class="cb-rate-label">Interest Rate</div>
-        ${(() => {
-          const ry = realYieldsData && realYieldsData[cb.currency];
-          if (!ry || ry.real == null) return '';
-          const sign = ry.real >= 0 ? '+' : '';
-          // Yellow when inflation data is stale (>90d) — value less reliable
-          const col  = ry.stale ? 'var(--yellow)' : (ry.real >= 0 ? 'var(--green)' : 'var(--accent)');
-          const staleDays = ry.inflation_as_of
-            ? Math.floor((Date.now() - new Date(ry.inflation_as_of).getTime()) / 86400000)
-            : null;
-          const staleEl = ry.stale
-            ? `<span style="font-size:8px;color:var(--yellow);margin-left:3px" title="${ry.source_inflation || 'inflasi'}${staleDays ? ` · ${staleDays} hari lalu` : ''} — perlu update manual">(lama)</span>`
-            : '';
-          const nomStr = ry.nominal != null ? ry.nominal.toFixed(2) : '?';
-          const staleNote = ry.stale && staleDays ? ` · ⚠ ${ry.source_inflation || 'inflasi'} ${staleDays}h lalu` : '';
-          const tooltip = `Nom ${nomStr}% − Inf ${ry.inflation_exp.toFixed(2)}%${staleNote}`;
-          return `<div class="cb-rate-label" style="color:${col};margin-top:2px" title="${tooltip}">Real: ${sign}${ry.real.toFixed(2)}%${staleEl}<br><span style="font-size:9px;opacity:.6">${nomStr}% − ${ry.inflation_exp.toFixed(2)}%</span></div>`;
-        })()}
-        <div class="cb-decision ${decisionClass}">${decisionText}</div>
-        ${cb.last_meeting
-          ? `<div style="font-size:8px;font-family:'DM Mono',monospace;margin-top:3px;${meetingStale ? 'color:var(--accent)' : 'color:var(--muted)'}">
-              ${meetingStale ? '⚠ ' : ''}${cb.last_meeting}${meetingStale ? ` · ${daysSinceMeeting}h lalu — cek ulang` : ''}
-            </div>`
-          : ''}
-        <br>
-        <div class="cb-bias ${biasClass}">${biasLabel}${confidenceDot}</div>
-        ${updatedStr ? `<div class="cb-updated">↻ ${updatedStr}</div>` : ''}
-        ${(() => {
-          if (cb.currency !== 'USD' || !ratePathData || !ratePathData.USD) return '';
-          const rp = ratePathData.USD;
-          const nm = rp.next_meetings && rp.next_meetings[0];
-          if (!nm) return '';
-          const holdPct = Math.round((nm.prob_hold || 0) * 100);
-          const cutPct  = Math.round((nm.prob_cut25 || 0) * 100);
-          const imp6 = rp.cumulative_6m_bps;
-          const imp6Str = imp6 !== undefined ? ` · 6M: ${imp6 >= 0 ? '+' : ''}${imp6}bps` : '';
-          return `<div class="cb-updated" style="color:var(--text-mid)" title="Estimasi heuristik — bukan probabilitas pasar (CME FedWatch)">Hold ${holdPct}% / Cut ${cutPct}%${imp6Str} <span style="color:var(--muted);font-size:9px">(Est.)</span></div>`;
-        })()}
-      </div>`;
+    return '<tr>'
+      + '<td class="cb-td-cur" style="color:' + col + '">'
+      + '<span style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:14px;border-radius:1px;background:' + col + '"></span>'
+      + cb.currency + '</td>'
+      + '<td class="cb-td-rate">' + cb.rate.toFixed(2) + '%' + liveDot + realHtml + pathHtml + '</td>'
+      + '<td class="cb-td-dec"><span class="cb-decision ' + decisionClass + '">' + decisionText + '</span><br>' + meetingHtml + '</td>'
+      + '<td class="cb-td-bias"><span class="cb-bias ' + biasClass + '">' + biasLabel + confDot + '</span></td>'
+      + '</tr>';
   }).join('');
 
-  // Update last analyzed timestamp
-  const latestUpdate = cbData
-    .filter(c => c.bias_updated)
-    .map(c => c.bias_updated)
-    .sort()
-    .pop();
+  grid.innerHTML = '<table class="cb-table"><tbody>' + rows + '</tbody></table>';
+
+  const latestUpdate = cbData.filter(c => c.bias_updated).map(c => c.bias_updated).sort().pop();
   if (latestUpdate) {
-    document.getElementById('cbUpdatedAt').textContent = 'Updated ' + fmtCBTime(latestUpdate);
+    document.getElementById('cbUpdatedAt').textContent = fmtCBTime(latestUpdate);
   }
 }
 
@@ -2734,15 +2743,51 @@ function renderFundamental() {
     el.textContent = mins < 1 ? 'baru saja' : `${mins}m lalu`;
   }
 
-  grid.innerHTML = FUND_CUR_ORDER.map(cur => {
-    const data = fundData[cur] || {};
-    const col  = CUR_COLORS[cur] || '#888';
+  const RATE_KEYS = { USD:'Fed Rate', EUR:'ECB Rate', GBP:'BOE Rate', JPY:'BOJ Rate', CAD:'BOC Rate', AUD:'RBA Rate', NZD:'RBNZ Rate', CHF:'SNB Rate' };
 
-    // Find rate indicator for this currency
-    const RATE_KEYS = { USD:'Fed Rate', EUR:'ECB Rate', GBP:'BOE Rate', JPY:'BOJ Rate', CAD:'BOC Rate', AUD:'RBA Rate', NZD:'RBNZ Rate', CHF:'SNB Rate' };
-    const rateKey   = RATE_KEYS[cur];
-    const rateVal   = rateKey && data[rateKey] ? data[rateKey].actual : null;
+  // Compute scores for all currencies first
+  const scores = FUND_CUR_ORDER.map(cur => {
+    const data    = fundData[cur] || {};
+    const rateKey = RATE_KEYS[cur];
+    const rateVal = rateKey && data[rateKey] ? data[rateKey].actual : null;
+    let bullCt = 0, bearCt = 0, scoredCt = 0;
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === rateKey) return;
+      const s = scoreInd(k, v.actual);
+      if (s !== null) { scoredCt++; if (s > 0) bullCt++; else bearCt++; }
+    });
+    const score      = scoredCt > 0 ? Math.round(bullCt / scoredCt * 100) : null;
+    const scoreLabel = score === null ? 'N/A' : score >= 60 ? 'Bull' : score < 40 ? 'Bear' : 'Neut';
+    const scoreColor = score === null ? 'var(--muted)' : score >= 60 ? 'var(--green)' : score < 40 ? 'var(--red)' : 'var(--yellow)';
+    const confTier   = scoredCt >= 7 ? 'high' : scoredCt >= 4 ? 'med' : scoredCt > 0 ? 'low' : null;
+    const confLabel  = confTier === 'high' ? 'High' : confTier === 'med' ? 'Med' : confTier === 'low' ? 'Low' : null;
+    const col        = CUR_COLORS[cur] || '#888';
+    return { cur, data, rateKey, rateVal, score, scoreLabel, scoreColor, confTier, confLabel, scoredCt, col };
+  });
 
+  // Render strength ranking strip
+  const rankSection = document.getElementById('fundRankSection');
+  const rankGrid    = document.getElementById('fundRankGrid');
+  if (rankGrid) {
+    const sorted = [...scores].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    rankGrid.innerHTML = sorted.map((s, i) => {
+      const badgeCls = s.score === null ? 'nd' : s.score >= 60 ? 'bull' : s.score < 40 ? 'bear' : 'neut';
+      const fill     = s.score !== null ? s.score : 0;
+      return `<div class="frnk-cell" style="border-left:2px solid ${s.col}">
+        <div class="frnk-top">
+          <span class="frnk-rank">#${i + 1}</span>
+          <span class="frnk-cur" style="color:${s.col}">${s.cur}</span>
+          <span class="frnk-badge ${badgeCls}">${s.score !== null ? s.score + '%' : '—'}</span>
+        </div>
+        <div class="frnk-bar-bg"><div class="frnk-bar-fill" style="width:${fill}%;background:${s.scoreColor}"></div></div>
+        ${s.rateVal ? `<div class="frnk-rate">${escHtml(s.rateVal)}</div>` : ''}
+      </div>`;
+    }).join('');
+    if (rankSection) rankSection.style.display = 'block';
+  }
+
+  // Render currency cards
+  grid.innerHTML = scores.map(({ cur, data, rateKey, rateVal, score, scoreLabel, scoreColor, confTier, confLabel, scoredCt, col }) => {
     const rows = Object.entries(data)
       .filter(([k]) => k !== rateKey)
       .map(([k, v]) => {
@@ -2756,24 +2801,11 @@ function renderFundamental() {
         </tr>`;
       }).join('');
 
-    // Compute score (normalized, excludes rate key)
-    let bullCt = 0, bearCt = 0, scoredCt = 0;
-    Object.entries(data).forEach(([k, v]) => {
-      if (k === rateKey) return;
-      const s = scoreInd(k, v.actual);
-      if (s !== null) { scoredCt++; if (s > 0) bullCt++; else bearCt++; }
-    });
-    const score      = scoredCt > 0 ? Math.round(bullCt / scoredCt * 100) : null;
-    const scoreLabel = score === null ? null : score >= 60 ? 'Bullish' : score < 40 ? 'Bearish' : 'Neutral';
-    const scoreColor = score === null ? 'var(--muted)' : score >= 60 ? 'var(--green)' : score < 40 ? 'var(--red)' : 'var(--yellow)';
-    const confTier   = scoredCt >= 7 ? 'high' : scoredCt >= 4 ? 'med' : scoredCt > 0 ? 'low' : null;
-    const confLabel  = confTier === 'high' ? 'High' : confTier === 'med' ? 'Med' : confTier === 'low' ? 'Low' : null;
-
     const scoreHtml = score !== null ? `
       <div class="fund-score-row">
         <div class="fund-score-bar"><div class="fund-score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
         <span class="fund-score-num" style="color:${scoreColor}">${scoreLabel} ${score}%</span>
-        <span class="fund-score-conf ${confTier}">${confLabel} (${scoredCt})</span>
+        <span class="fund-score-conf ${confTier}">${confLabel}</span>
       </div>` : '';
 
     return `<div class="fund-card" style="border-left:3px solid ${col}">
@@ -2783,7 +2815,7 @@ function renderFundamental() {
       </div>
       ${scoreHtml}
       <table class="fund-table">
-        ${rows || '<tr><td colspan="3" class="fund-td-ind" style="padding:4px 0">Tidak ada data</td></tr>'}
+        ${rows || '<tr><td colspan="3" class="fund-td-ind" style="padding:4px 0">No data</td></tr>'}
       </table>
     </div>`;
   }).join('');
